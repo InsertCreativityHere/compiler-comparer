@@ -10,7 +10,7 @@ import time;
 
 
 # Setting this to true will cause the script to print lots of letters to the terminal while it's running.
-DEBUGGING = False;
+DEBUGGING = True;
 
 # This is passed into many of the subprocess commands we execute.
 # `None` causes 'stdout' to be dumped into the terminal, whereas `DEVNULL` will eat this output.
@@ -27,7 +27,7 @@ if DEBUGGING: print("    >> CURRENT_DIR = '" + str(CURRENT_DIR) + "'");
 
 # Determine if we're running on a windows platform.
 IS_WINDOWS = os.name == "nt";
-if DEBUGGING: print("    >> IS_WINDOWS = '" + str(CURRENT_DIR) + "'");
+if DEBUGGING: print("    >> IS_WINDOWS = '" + str(IS_WINDOWS) + "'");
 
 
 
@@ -72,7 +72,7 @@ PROJ_PATH = "--proj-path=";
 COMPILERS_PATH = "--compilers-path=";
 PYTHON_PATH = "--python-path=";
 
-# Perform the actual parsing.
+# Parse any command line arguments.
 if DEBUGGING: print("    >> Provided arguments: " + str(sys.argv[1:]));
 for index, arg in enumerate(sys.argv[1:]):
     if arg.startswith(SHORT_COMPILER):
@@ -139,16 +139,19 @@ if not os.path.isdir(REPO_ROOT):
 # If no compilers were specified, we want to run _all_ the compilers.
 if len(compilers) == 0:
     compilers = ["ice2slice", "slice2cpp", "slice2cs", "slice2java", "slice2js", "slice2matlab", "slice2php", "slice2py", "slice2rb", "slice2swift"];
-    # We don't build 'slice2swift' on windows. TODO we should fix this in the future.
+    #TODO We don't build 'slice2swift' on windows... we should fix this in the future.
     if IS_WINDOWS:
         compilers.remove("slice2swift");
+    #TODO 'ice2slice' hits an assertion when compiling constants. Unfortunately, not worth running yet.
+    compilers.remove("ice2slice");
     if DEBUGGING: print("    >> No compilers were specified. Setting to '" + str(compilers) + "'");
 
-# If no branches were specified, running this script is useless...
+# If no branches were specified, we default to using the current branch.
 if len(branches) == 0:
-    print("Error: At least one branch must be specified!");
-    printHelp();
-    exit(13);
+    result = subprocess.run(["git", "rev-parse", "--abbrev-ref", "HEAD"], check=True, capture_output=True);
+    if DEBUGGING: print("    >> RESULT 'git rev-parse --abbrev-ref HEAD' = '" + str(result) + "'");
+    branches = [result.stdout.decode("utf-8").strip()];
+    if DEBUGGING: print("    >> No branches were specified. Setting to current branch '" + str(branches[0]) + "'");
 
 # If no slice files were provided, we want to recursively get ALL the slice files in the current directory.
 if len(sliceFiles) == 0:
