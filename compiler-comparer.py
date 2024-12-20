@@ -40,7 +40,6 @@ print("!!! ------------------------------------------------- !!!");
 print("!!! BE WARNED THIS SCRIPT WILL CLEAN THE CURRENT REPO !!!");
 print("!!! DO NOT RUN THIS IF YOU HAVE ANY UNSAVED WORK LEFT !!!");
 print("!!! ------------------------------------------------- !!!");
-print();
 input("Press Enter to continue...");
 print();
 
@@ -239,7 +238,7 @@ print("A total of " + str(len(sliceFiles)) + " Slice files will be compiled.");
 def git_clean(removeSliceGenerated):
     time.sleep(0.5);
     try:
-        args = ["git", "clean", "-dqfx"] + ([] if removeSliceGenerated else ["-e", "_slice_generated_*"]);
+        args = ["git", "clean", "-dqfx"] + ([] if removeSliceGenerated else ["-e", "_slice_gen_*"]);
         result = subprocess.run(args, check=True, env=ENVIRONMENT, stdout=OUTPUT_TO);
         if DEBUGGING: print("    >> RESULT 'git clean -dqfx ...' = '" + str(result) + "'");
     except subprocess.CalledProcessError as ex:
@@ -303,7 +302,7 @@ git_clean(True);
 git_reset();
 
 # Then, we want to compile the slice Files against each provided branch.
-for branch in branches:
+for index,branch in enumerate(branches):
     print();
 
     # Checkout the branch, and perform a clean build.
@@ -318,7 +317,7 @@ for branch in branches:
 
     # If the build succeeded, next we want to run the Slice compilers over the Slice files.
     # So we create a directory to output the generated code into, and then run through the compilers.
-    outputDirBase = os.path.join(REPO_ROOT, "_slice_generated_" + sanitized_branch);
+    outputDirBase = os.path.join(REPO_ROOT, "_slice_gen_" + str(index) + "_" + sanitized_branch);
     Path(outputDirBase).mkdir(parents=True, exist_ok=True);
     for compiler in compilers:
         print("    Running " + os.path.basename(compiler) + "...");
