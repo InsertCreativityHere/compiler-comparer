@@ -258,8 +258,8 @@ def git_reset():
 
 def git_checkout(branchName):
     time.sleep(0.5);
-    result = subprocess.run(["git", "checkout", branchName], check=True, env=ENVIRONMENT, stdout=OUTPUT_TO);
-    if DEBUGGING: print("    >> RESULT 'git checkout <branchName>' = '" + str(result) + "'");
+    result = subprocess.run(["git", "-c", "advice.detachedHead=false", "checkout", branchName], check=True, env=ENVIRONMENT, stdout=OUTPUT_TO);
+    if DEBUGGING: print("    >> RESULT 'git ... checkout <branchName>' = '" + str(result) + "'");
 
     result1 = subprocess.run(["git", "rev-parse", "--abbrev-ref", "HEAD"], check=True, capture_output=True);
     result2 = subprocess.run(["git", "rev-parse", "--short", "HEAD"], check=True, capture_output=True);
