@@ -236,11 +236,12 @@ print("A total of " + str(len(sliceFiles)) + " Slice files will be compiled.");
 #### Define Functions for the Actual Runtime Logic ####
 #### ============================================= ####
 
-def git_clean():
+def git_clean(removeSliceGenerated):
     time.sleep(0.5);
     try:
-        result = subprocess.run(["git", "clean", "-dqfx"], check=True, env=ENVIRONMENT, stdout=OUTPUT_TO);
-        if DEBUGGING: print("    >> RESULT 'git clean -dqfx' = '" + str(result) + "'");
+        args = ["git", "clean", "-dqfx"] + ([] if removeSliceGenerated else ["-e", "_slice_generated_*"]);
+        result = subprocess.run(args, check=True, env=ENVIRONMENT, stdout=OUTPUT_TO);
+        if DEBUGGING: print("    >> RESULT 'git clean -dqfx ...' = '" + str(result) + "'");
     except subprocess.CalledProcessError as ex:
         print(ex);
         print("WARNING: failed to 'git clean' repository, continuing anyways...");
@@ -261,6 +262,10 @@ def git_checkout(branchName):
     result = subprocess.run(["git", "checkout", branchName], check=True, env=ENVIRONMENT, stdout=OUTPUT_TO);
     if DEBUGGING: print("    >> RESULT 'git checkout <branchName>' = '" + str(result) + "'");
 
+    result1 = subprocess.run(["git", "rev-parse", "--abbrev-ref", "HEAD"], check=True, capture_output=True);
+    result2 = subprocess.run(["git", "rev-parse", "--short", "HEAD"], check=True, capture_output=True);
+    return result1.stdout.decode("utf-8").strip() + "_" + result2.stdout.decode("utf-8").strip();
+
 def build():
     if IS_WINDOWS:
         msbuild();
@@ -279,7 +284,7 @@ def make():
     if DEBUGGING: print("    >> RESULT 'make ...' = '" + str(result) + "'");
 
 def sliceCompile(compiler, sliceFile, outputDir):
-    time.sleep(0.02);
+    time.sleep(0.01);
     result = subprocess.run([compiler, "--output-dir", outputDir, "-I./slice", "-I" + os.path.dirname(sliceFile), sliceFile], check=True, env=ENVIRONMENT, stdout=OUTPUT_TO);
     if DEBUGGING: print("    >> RESULT '" + str(compiler) + "--output-dir <outputPath> -Islice -I<parentPath> <file>' = '" + str(result) + "'");
 
@@ -294,7 +299,7 @@ def sliceCompile(compiler, sliceFile, outputDir):
 os.chdir(REPO_ROOT);
 
 # Then, do a preliminary clean and reset, to make sure we're in a known state.
-git_clean();
+git_clean(True);
 git_reset();
 
 # Then, we want to compile the slice Files against each provided branch.
@@ -303,15 +308,17 @@ for branch in branches:
 
     # Checkout the branch, and perform a clean build.
     if DEBUGGING: print("================================================================================");
-    git_checkout(branch);
-    print("Building '" + branch + "' branch...");
+    sanitized_branch = git_checkout(branch);
+    git_clean(False);
+
+    print("Building '" + sanitized_branch + "'...");
     build();
     if DEBUGGING: print("================================================================================");
     print("Build complete!");
 
     # If the build succeeded, next we want to run the Slice compilers over the Slice files.
     # So we create a directory to output the generated code into, and then run through the compilers.
-    outputDirBase = os.path.join(REPO_ROOT, "_slice_generated_" + branch);
+    outputDirBase = os.path.join(REPO_ROOT, "_slice_generated_" + sanitized_branch);
     Path(outputDirBase).mkdir(parents=True, exist_ok=True);
     for compiler in compilers:
         print("    Running " + os.path.basename(compiler) + "...");
