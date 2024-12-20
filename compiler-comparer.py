@@ -10,7 +10,7 @@ import time;
 
 
 # Setting this to true will cause the script to print lots of letters to the terminal while it's running.
-DEBUGGING = True;
+DEBUGGING = False;
 
 # This is passed into many of the subprocess commands we execute.
 # `None` causes 'stdout' to be dumped into the terminal, whereas `DEVNULL` will eat this output.
@@ -35,10 +35,12 @@ if DEBUGGING: print("    >> IS_WINDOWS = '" + str(IS_WINDOWS) + "'");
 
 
 # Before anything else, make sure the user is VERY AWARE that this will clean and reset their repo...
+print();
 print("!!! ------------------------------------------------- !!!");
 print("!!! BE WARNED THIS SCRIPT WILL CLEAN THE CURRENT REPO !!!");
 print("!!! DO NOT RUN THIS IF YOU HAVE ANY UNSAVED WORK LEFT !!!");
 print("!!! ------------------------------------------------- !!!");
+print();
 input("Press Enter to continue...");
 print();
 
@@ -180,8 +182,8 @@ if len(projPath) == 0:
         projPath = os.path.join(REPO_ROOT, "cpp\\msbuild\\ice.proj");
         if DEBUGGING: print("    >> No project path was specified. Setting to '" + str(projPath) + "' for windows");
     else:
-        print("This script doesn't really work on non-windows platforms, sorry...")
-        exit(101); #TODO make this work on non-windows platforms!
+        projPath = os.path.join(REPO_ROOT, "cpp/Makefile");
+        if DEBUGGING: print("    >> No project path was specified. Setting to '" + str(projPath) + "' for unix");
     # Make sure that whatever file we just set it to actually exists.
     if not os.path.isfile(projPath):
         print("ERROR: Default computed project path '" + str(projPath) + "' does not exist!");
@@ -259,10 +261,22 @@ def git_checkout(branchName):
     result = subprocess.run(["git", "checkout", branchName], check=True, env=ENVIRONMENT, stdout=OUTPUT_TO);
     if DEBUGGING: print("    >> RESULT 'git checkout <branchName>' = '" + str(result) + "'");
 
+def build():
+    if IS_WINDOWS:
+        msbuild();
+    else:
+        make();
+
 def msbuild():
     time.sleep(0.5);
     result = subprocess.run(["msbuild", projPath, "/target:BuildDist", "/p:Configuration=Debug", "/p:Platform=x64", "/p:PythonHome=\"" + pythonPath + "\"", "/m", "/nr:false"], check=True, env=ENVIRONMENT, stdout=OUTPUT_TO);
-    if DEBUGGING: print("    >> RESULT 'msbuild <projPath>' = '" + str(result) + "'");
+    if DEBUGGING: print("    >> RESULT 'msbuild ...' = '" + str(result) + "'");
+
+def make():
+    time.sleep(0.5);
+    args = ["make", "-C", os.path.dirname(projPath)] + [os.path.basename(c) for c in compilers];
+    result = subprocess.run(args, check=True, env=ENVIRONMENT, stdout=OUTPUT_TO);
+    if DEBUGGING: print("    >> RESULT 'make ...' = '" + str(result) + "'");
 
 def sliceCompile(compiler, sliceFile, outputDir):
     time.sleep(0.02);
@@ -288,12 +302,12 @@ for branch in branches:
     print();
 
     # Checkout the branch, and perform a clean build.
-    print("Beginning build of '" + branch + "' branch...");
     if DEBUGGING: print("================================================================================");
     git_checkout(branch);
-    msbuild();
+    print("Building '" + branch + "' branch...");
+    build();
     if DEBUGGING: print("================================================================================");
-    print("    Build complete!");
+    print("Build complete!");
 
     # If the build succeeded, next we want to run the Slice compilers over the Slice files.
     # So we create a directory to output the generated code into, and then run through the compilers.
