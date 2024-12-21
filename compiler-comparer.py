@@ -297,6 +297,9 @@ def sliceCompile(compiler, sliceFile, outputDir):
 # First, navigate to the repo root. It's easier if we're running in a known location.
 os.chdir(REPO_ROOT);
 
+# Keep a list of all the directories we've generated for later.
+generatedDirectories = [];
+
 # Then, do a preliminary clean and reset, to make sure we're in a known state.
 git_clean(True);
 git_reset();
@@ -307,18 +310,21 @@ for index,branch in enumerate(branches):
 
     # Checkout the branch, and perform a clean build.
     if DEBUGGING: print("================================================================================");
-    sanitized_branch = git_checkout(branch);
+    branchID = git_checkout(branch);
     git_clean(False);
 
-    print("Building '" + sanitized_branch + "'...");
+    print("Building '" + branchID + "'...");
     build();
     if DEBUGGING: print("================================================================================");
     print("Build complete!");
 
     # If the build succeeded, next we want to run the Slice compilers over the Slice files.
     # So we create a directory to output the generated code into, and then run through the compilers.
-    outputDirBase = os.path.join(REPO_ROOT, "_slice_gen_" + str(index) + "_" + sanitized_branch);
+    outputDirBase = os.path.join(REPO_ROOT, "_slice_gen_" + str(index) + "_" + branchID);
     Path(outputDirBase).mkdir(parents=True, exist_ok=True);
+    generatedDirectories.append(outputDirBase);
+
+    # Run all the Slice compilers!
     for compiler in compilers:
         print("    Running " + os.path.basename(compiler) + "...");
         for file in sliceFiles:
@@ -328,3 +334,29 @@ for index,branch in enumerate(branches):
 
     # We're done with this branch!
     print("Finished!");
+
+
+
+
+#### ======================================== ####
+#### Check the Generated Code for Differences ####
+#### ======================================== ####
+
+if DEBUGGING:
+    print();
+    print("    >> ==============================================");
+    print("    >> Entering File Discovery and Differencing Phase");
+    print("    >> ==============================================");
+    print();
+
+# First, we want to build a table of all the generated files, and which directory they came from.
+generatedCode = [];
+for dir in generatedDirectories:
+    generatedCode.append([]);
+    if DEBUGGING: print("    >> Discovering files in top-level directory '" + dir + "'");
+    for root, dirs, files in os.walk(dir):
+        if DEBUGGING: print("    >>     Entered folder '" + root + "'. Discovered " + str(len(dirs)) + " dirs and " + str(len(files)) + " files");
+        generatedCode[-1].extend([os.path.join(root, f) for f in files]);
+        if DEBUGGING: print("    >>         The files being added are: " + str(files));
+
+# Then, let's start comparing them in order.
