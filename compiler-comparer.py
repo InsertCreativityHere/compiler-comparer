@@ -345,29 +345,28 @@ compareDir = os.path.join(REPO_ROOT, "_slice_compare_");
 if os.path.exists(os.path.join(compareDir, ".git")):
     moveDir(os.path.join(compareDir, ".git"), os.path.join(compareDir, "plz-delete"))
 
-try:
-    # First, navigate to the repo root. It's easier if we're running in a known location.
-    os.chdir(REPO_ROOT);
+# First, navigate to the repo root. It's easier if we're running in a known location.
+os.chdir(REPO_ROOT);
 
-    # Then, do a preliminary clean and reset, to make sure we're in a known state.
-    git_clean(True);
-    git_reset();
+# Then, do a preliminary clean and reset, to make sure we're in a known state.
+git_clean(True);
+git_reset();
 
-    # Create a new directory that we'll use as scratch space for comparing the generated code.
-    Path(compareDir).mkdir();
+# Create a new directory that we'll use as scratch space for comparing the generated code.
+Path(compareDir).mkdir();
 
-    # Initialize a git repository in that directory. We utilize git to do the diffing for us!
-    result = subprocess.run(["git", "-c", "init.defaultBranch=master", "-C", compareDir, "init"], check=True, env=ENVIRONMENT, stdout=OUTPUT_TO);
-    if DEBUGGING: print("    >> RESULT 'git -c init.defaultBranch=master ... init' = '" + str(result) + "'");
-    result = subprocess.run(["git", "-C", compareDir, "config", "user.name", "temp"], check=True, env=ENVIRONMENT, stdout=OUTPUT_TO);
-    if DEBUGGING: print("    >> RESULT 'git ... config user.name temp' = '" + str(result) + "'");
-    result = subprocess.run(["git", "-C", compareDir, "config", "user.email", "temp@zeroc.com"], check=True, env=ENVIRONMENT, stdout=OUTPUT_TO);
-    if DEBUGGING: print("    >> RESULT 'git ... config user.email temp@zeroc.com' = '" + str(result) + "'");
+# Initialize a git repository in that directory. We utilize git to do the diffing for us!
+result = subprocess.run(["git", "-c", "init.defaultBranch=master", "-C", compareDir, "init"], check=True, env=ENVIRONMENT, stdout=OUTPUT_TO);
+if DEBUGGING: print("    >> RESULT 'git -c init.defaultBranch=master ... init' = '" + str(result) + "'");
+result = subprocess.run(["git", "-C", compareDir, "config", "user.name", "temp"], check=True, env=ENVIRONMENT, stdout=OUTPUT_TO);
+if DEBUGGING: print("    >> RESULT 'git ... config user.name temp' = '" + str(result) + "'");
+result = subprocess.run(["git", "-C", compareDir, "config", "user.email", "temp@zeroc.com"], check=True, env=ENVIRONMENT, stdout=OUTPUT_TO);
+if DEBUGGING: print("    >> RESULT 'git ... config user.email temp@zeroc.com' = '" + str(result) + "'");
 
-    # Then, we want to compile the slice Files against each provided branch, and store them in this scratch git repository.
-    for branch in branches:
-        print();
-
+# Then, we want to compile the slice Files against each provided branch, and store them in this scratch git repository.
+for branch in branches:
+    print();
+    try:
         # Checkout the branch, and perform a clean build.
         if DEBUGGING: print("================================================================================");
         branchName, branchID = git_checkout(branch);
@@ -419,19 +418,20 @@ try:
         if backTrack != None:
             print("Backtrack iterations remaining: '" + str(backTrack) + "'");
             backTrack -= 1;
+    except:
+        raise;
 
-    # Finally, we do a hard reset on our now fully completed scratch git repository,
-    # so that it doesn't look like all it's files were deleted when you interact with it.
-    result = subprocess.run(["git", "-C", compareDir, "reset", "--hard"], check=True, env=ENVIRONMENT, stdout=OUTPUT_TO);
-    if DEBUGGING: print("    >> RESULT 'git ... reset --hard' = '" + str(result) + "'");
+# Finally, we do a hard reset on our now fully completed scratch git repository,
+# so that it doesn't look like all it's files were deleted when you interact with it.
+result = subprocess.run(["git", "-C", compareDir, "reset", "--hard"], check=True, env=ENVIRONMENT, stdout=OUTPUT_TO);
+if DEBUGGING: print("    >> RESULT 'git ... reset --hard' = '" + str(result) + "'");
 
-    print();
-    print("The results of this script have been stored in the '" + compareDir + "' directory.");
-    print();
+print();
+print("The results of this script have been stored in the '" + compareDir + "' directory.");
+print();
 
-finally:
-    # Okay, now the actual last step, we do a final clean to remove everything except the new git repository we created,
-    # And switch back to the branch that this repository was on originally, to minimize inconvenience for users.
-    if DEBUGGING: print("    >> Running final cleanup logic now");
-    git_clean(False);
-    git_checkout(ORIGINAL_BRANCH);
+# Okay, now the actual last step, we do a final clean to remove everything except the new git repository we created,
+# And switch back to the branch that this repository was on originally, to minimize inconvenience for users.
+if DEBUGGING: print("    >> Running final cleanup logic now");
+git_clean(False);
+git_checkout(ORIGINAL_BRANCH);
