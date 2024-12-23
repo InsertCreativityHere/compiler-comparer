@@ -152,7 +152,7 @@ if not os.path.isdir(REPO_ROOT):
 # Store which branch the repository is currently on, so we can switch back to it when we're done running.
 result = subprocess.run(["git", "rev-parse", "--abbrev-ref", "HEAD"], check=True, capture_output=True);
 if DEBUGGING: print("    >> RESULT 'git rev-parse --abbrev-ref HEAD' = '" + str(result) + "'");
-ORIGINAL_BRANCH =  = result.stdout.decode("utf-8").strip();
+ORIGINAL_BRANCH = result.stdout.decode("utf-8").strip();
 
 # If no compilers were specified, we want to run _all_ the compilers.
 if len(compilers) == 0:
