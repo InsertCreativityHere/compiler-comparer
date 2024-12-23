@@ -12,6 +12,8 @@ import time;
 # Setting this to true will cause the script to print lots of letters to the terminal while it's running.
 DEBUGGING = False;
 
+
+
 # This is passed into many of the subprocess commands we execute.
 # `None` causes 'stdout' to be dumped into the terminal, whereas `DEVNULL` will eat this output.
 # Note that we only use this for 'stdout', we always let 'stderr' dump into the terminal.
@@ -360,13 +362,6 @@ for index,branch in enumerate(branches):
 #### ======================================== ####
 #### Check the Generated Code for Differences ####
 #### ======================================== ####
-
-if DEBUGGING:
-    print();
-    print("    >> ==============================================");
-    print("    >> Entering File Discovery and Differencing Phase");
-    print("    >> ==============================================");
-    print();
 
 # Create a new directory that we'll use as scratch space for comparing the generated code.
 compareDir = os.path.join(REPO_ROOT, "_slice_compare_");
