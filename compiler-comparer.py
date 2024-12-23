@@ -370,7 +370,7 @@ for branch in branches:
     # We commit the contents of this '_slice_gen_*' folder, so that the '.git' will capture it.
     result = subprocess.run(["git", "-C", outputDirBase, "add", "--all"], check=True, env=ENVIRONMENT, stdout=OUTPUT_TO);
     if DEBUGGING: print("    >> RESULT 'git ... add --all' = '" + str(result) + "'");
-    message = os.path.basename(outputDirBase)[13:] + ":\n" + branchMessage;
+    message = branchName + " @ " + branchID + ":" + branchMessage;
     result = subprocess.run(["git", "-C", outputDirBase, "commit", "-m", message], check=True, env=ENVIRONMENT, stdout=OUTPUT_TO);
     if DEBUGGING: print("    >> RESULT 'git ... commit -m ...' = '" + str(result) + "'");
 
