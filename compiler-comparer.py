@@ -370,8 +370,8 @@ compareDir = os.path.join(REPO_ROOT, "_slice_compare_");
 Path(compareDir).mkdir();
 
 # Initialize a git repository in that directory. We utilize git to do the diffing for us!
-result = subprocess.run(["git", "-C", compareDir, "init"], check=True, env=ENVIRONMENT, stdout=OUTPUT_TO);
-if DEBUGGING: print("    >> RESULT 'git ... init' = '" + str(result) + "'");
+result = subprocess.run(["git", "-c", "init.defaultBranch=master", "-C", compareDir, "init"], check=True, env=ENVIRONMENT, stdout=OUTPUT_TO);
+if DEBUGGING: print("    >> RESULT 'git -c init.defaultBranch=master ... init' = '" + str(result) + "'");
 result = subprocess.run(["git", "-C", compareDir, "config", "user.name", "temp"], check=True, env=ENVIRONMENT, stdout=OUTPUT_TO);
 if DEBUGGING: print("    >> RESULT 'git ... config user.name temp' = '" + str(result) + "'");
 result = subprocess.run(["git", "-C", compareDir, "config", "user.email", "temp@zeroc.com"], check=True, env=ENVIRONMENT, stdout=OUTPUT_TO);
