@@ -403,14 +403,19 @@ for branch in branches:
         # We rip out the core '.git' folder from our scratch repo, and move into this '_slice_gen_*' folder.
         moveDir(os.path.join(compareDir, ".git"), outputDirBase);
 
-        # We commit the contents of this '_slice_gen_*' folder, so that the '.git' will capture it.
-        result = subprocess.run(["git", "-C", outputDirBase, "add", "--all"], check=True, env=ENVIRONMENT, stdout=OUTPUT_TO);
-        if DEBUGGING: print("    >> RESULT 'git ... add --all' = '" + str(result) + "'");
-        message = branchName + "@" + branchID + ": " + branchMessage;
-        result = subprocess.run(["git", "-C", outputDirBase, "commit", "-m", message], check=True, env=ENVIRONMENT, stdout=OUTPUT_TO);
-        if DEBUGGING: print("    >> RESULT 'git ... commit -m ...' = '" + str(result) + "'");
+        # Check if there's been any changes to the generated code. If there have been, we want to add and commit them.
+        # We have this check because if there are no changes, `git commit` 'fails' with a non-zero exit code.
+        result = subprocess.run(["git", "-C", outputDirBase, "status", "-s"], check=True, capture_output=True);
+        if DEBUGGING: print("    >> RESULT 'git ... status -s' = '" + str(result) + "'");
+        if result.stdout.decode("utf-8").strip() != "":
+            # We commit the contents of this '_slice_gen_*' folder, so that the '.git' will capture it.
+            result = subprocess.run(["git", "-C", outputDirBase, "add", "--all"], check=True, env=ENVIRONMENT, stdout=OUTPUT_TO);
+            if DEBUGGING: print("    >> RESULT 'git ... add --all' = '" + str(result) + "'");
+            message = branchName + "@" + branchID + ": " + branchMessage;
+            result = subprocess.run(["git", "-C", outputDirBase, "commit", "-m", message], check=True, env=ENVIRONMENT, stdout=OUTPUT_TO);
+            if DEBUGGING: print("    >> RESULT 'git ... commit -m ...' = '" + str(result) + "'");
 
-        # Now that we've captured the state of the generated code, move the '.git' back to where it belongs,
+        # Now that we've captured any changes in the generated code, move the '.git' back to where it belongs,
         moveDir(os.path.join(outputDirBase, ".git"), compareDir);
 
         # We're done with this branch!
