@@ -186,21 +186,6 @@ if backTrack != None:
 if len(sliceFiles) == 0:
     sliceFiles = [CURRENT_DIR];
     if DEBUGGING: print("    >> No Slice files were specified. Setting to '" + str(CURRENT_DIR) + "'");
-# Check for any directories that were passed in as Slice files.
-# We recursively check each of these directories for Slice files and use those instead.
-tempSliceFiles = sliceFiles.copy();
-sliceFiles = [];
-for file in tempSliceFiles:
-    if os.path.isdir(file):
-        globPattern = os.path.join(file, "**/*.ice");
-        if DEBUGGING: print("    >> Encountered Slice directory of '" + file + "', globbing for '" + str(globPattern) + "'");
-        sliceFiles.extend(glob.iglob(globPattern, recursive=True));
-    else:
-        sliceFiles.append(file);
-if DEBUGGING:
-    print();
-    print("    >> (resolved) sliceFiles = '" + str(sliceFiles) + "'");
-    print();
 
 # If no project path was specified, set it to the top-level project file.
 if len(projPath) == 0:
@@ -238,23 +223,38 @@ if len(pythonPath) == 0:
     pythonPath = sys.exec_prefix
     if DEBUGGING: print("    >> No python path was specified. Setting to '" + str(pythonPath) + "'");
 
-# Final step if we've gotten this far is to sanitize the Slice file paths.
-# We want forward slashes only, and to make sure that all the paths live in the repository.
-sliceFiles = [os.path.abspath(f).replace('\\', '/') for f in sliceFiles];
-sanitizedRepoRoot = REPO_ROOT.replace('\\', '/') + '/';
-if DEBUGGING: print("    >> 'sanitizedRepoRoot' = '" + str(sanitizedRepoRoot) + "'");
-for f in sliceFiles:
-    if not f.startswith(sanitizedRepoRoot):
-        print("ERROR: This script cannot be run on '" + f + "' since it lives outside of the repository.");
-    if not os.path.exists(f):
-        print("ERROR: The Slice file '" + f + "' does not exist.");
-# Remove the REPO_ROOT from the slice Files, and filter out any files which live outside of the repository.
-sliceFiles = [f[len(sanitizedRepoRoot):] for f in sliceFiles if (f.startswith(sanitizedRepoRoot) and os.path.isfile(f))];
-if DEBUGGING:
-    print();
-    print("    >> (sanitized) sliceFiles = '" + str(sliceFiles) + "'");
-    print();
-print("A total of " + str(len(sliceFiles)) + " Slice files will be compiled.");
+def resolveSliceFiles(sliceFiles):
+    # Check for any directories that were passed in as Slice files.
+    # We recursively check each of these directories for Slice files and use those instead.
+    resolvedSliceFiles = [];
+    for file in sliceFiles:
+        if os.path.isdir(file):
+            globPattern = os.path.join(file, "**/*.ice");
+            if DEBUGGING: print("    >> Encountered Slice directory of '" + file + "', globbing for '" + str(globPattern) + "'");
+            resolvedSliceFiles.extend(glob.iglob(globPattern, recursive=True));
+        else:
+            resolvedSliceFiles.append(file);
+
+    # After we know that we only have files left, we need to sanitize the Slice file paths.
+    # We want forward slashes only, and to make sure that all the paths live in the repository.
+    resolvedSliceFiles = [os.path.abspath(f).replace('\\', '/') for f in resolvedSliceFiles];
+    sanitizedRepoRoot = REPO_ROOT.replace('\\', '/') + '/';
+    if DEBUGGING: print("    >> 'sanitizedRepoRoot' = '" + str(sanitizedRepoRoot) + "'");
+    for f in resolvedSliceFiles:
+        if not f.startswith(sanitizedRepoRoot):
+            print("ERROR: This script cannot be run on '" + f + "' since it lives outside of the repository.");
+        if not os.path.exists(f):
+            print("ERROR: The Slice file '" + f + "' does not exist on the current branch.");
+
+    # Remove the REPO_ROOT from the slice Files, and filter out any files which live outside of the repository.
+    resolvedSliceFiles = [f[len(sanitizedRepoRoot):] for f in resolvedSliceFiles if (f.startswith(sanitizedRepoRoot) and os.path.isfile(f))];
+    if DEBUGGING:
+        print();
+        print("    >> resolvedSliceFiles = '" + str(resolvedSliceFiles) + "'");
+        print();
+
+    print("A total of " + str(len(resolvedSliceFiles)) + " Slice files will be compiled.");
+    return resolvedSliceFiles;
 
 
 
@@ -312,7 +312,8 @@ def make():
 def sliceCompile(compiler, sliceFile, outputDir):
     time.sleep(0.01);
     # We set `check=False` here to tolerate when the Slice compiler encounters errors. Otherwise one error kills this whole script.
-    result = subprocess.run([compiler, "--output-dir", outputDir, "-I./slice", "-I" + os.path.dirname(sliceFile), sliceFile], check=False, env=ENVIRONMENT, stdout=OUTPUT_TO);
+    parentDir = os.path.dirname(sliceFile);
+    result = subprocess.run([compiler, "--output-dir", outputDir, "-I./slice", "-I" + parentDir, "-I" + os.path.dirname(parentDir), sliceFile], check=False, env=ENVIRONMENT, stdout=OUTPUT_TO);
     if DEBUGGING: print("    >> RESULT '" + str(compiler) + "--output-dir <outputPath> -Islice -I<parentPath> <file>' = '" + str(result) + "'");
 
 def moveDir(sourceDir, destinationDir):
@@ -378,14 +379,16 @@ try:
         print("Build complete!");
 
         # If the build succeeded, next we want to run the Slice compilers over the Slice files.
-        # So we create a directory to output the generated code into, and then run through the compilers.
+        # So we create a directory to output the generated code into...
         outputDirBase = os.path.join(REPO_ROOT, "_slice_gen_" + branchName + "_" + branchID);
         Path(outputDirBase).mkdir(parents=True, exist_ok=True);
+        # ... and resolve which Slice files we should compile on this branch.
+        resolvedSliceFiles = resolveSliceFiles(sliceFiles);
 
         # Run all the Slice compilers!
         for compiler in compilers:
             print("    Running " + os.path.basename(compiler) + "...");
-            for file in sliceFiles:
+            for file in resolvedSliceFiles:
                 outputDir = os.path.join(outputDirBase, os.path.dirname(file));
                 Path(outputDir).mkdir(parents=True, exist_ok=True);
                 sliceCompile(compiler, "./" + file, outputDir);
