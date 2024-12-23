@@ -324,7 +324,7 @@ for index,branch in enumerate(branches):
     branchName, branchID = git_checkout(branch);
     git_clean(False);
 
-    print("Building '" + branchName + "@" + branchID + "'...");
+    print("Building '" + branchName + " @ " + branchID + "'...");
     build();
     if DEBUGGING: print("================================================================================");
     print("Build complete!");
