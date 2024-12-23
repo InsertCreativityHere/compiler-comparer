@@ -149,6 +149,11 @@ if not os.path.isdir(REPO_ROOT):
     print("ERROR: Expected repository root to be at '" + REPO_ROOT + "', but no such directory exists!");
     exit(11);
 
+# Store which branch the repository is currently on, so we can switch back to it when we're done running.
+result = subprocess.run(["git", "rev-parse", "--abbrev-ref", "HEAD"], check=True, capture_output=True);
+if DEBUGGING: print("    >> RESULT 'git rev-parse --abbrev-ref HEAD' = '" + str(result) + "'");
+ORIGINAL_BRANCH =  = result.stdout.decode("utf-8").strip();
+
 # If no compilers were specified, we want to run _all_ the compilers.
 if len(compilers) == 0:
     compilers = ["ice2slice", "slice2cpp", "slice2cs", "slice2java", "slice2js", "slice2matlab", "slice2php", "slice2py", "slice2rb", "slice2swift"];
@@ -161,9 +166,7 @@ if len(compilers) == 0:
 
 # If no branches were specified, and we aren't backtracking, we default to using the current branch.
 if len(branches) == 0 and backTrack == None:
-    result = subprocess.run(["git", "rev-parse", "--abbrev-ref", "HEAD"], check=True, capture_output=True);
-    if DEBUGGING: print("    >> RESULT 'git rev-parse --abbrev-ref HEAD' = '" + str(result) + "'");
-    branches = [result.stdout.decode("utf-8").strip()];
+    branches = [ORIGINAL_BRANCH];
     if DEBUGGING: print("    >> No branches were specified. Setting to current branch '" + str(branches[0]) + "'");
 
 # If we're backtracking, make sure no branches were specified, and then re-use the 'branches' field.
@@ -409,8 +412,10 @@ for branch in branches:
 result = subprocess.run(["git", "-C", compareDir, "reset", "--hard"], check=True, env=ENVIRONMENT, stdout=OUTPUT_TO);
 if DEBUGGING: print("    >> RESULT 'git ... reset --hard' = '" + str(result) + "'");
 
-# Okay, now the actual last step, we do a final clean to remove everything except the new git repository we created.
+# Okay, now the actual last step, we do a final clean to remove everything except the new git repository we created,
+# And switch back to the branch that this repository was on originally, to minimize inconvenience for users.
 git_clean(False);
+git_checkout(ORIGINAL_BRANCH);
 
 # TODO add some analysis here at the end I guess.
 print();
