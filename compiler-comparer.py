@@ -235,10 +235,13 @@ print("A total of " + str(len(sliceFiles)) + " Slice files will be compiled.");
 #### Define Functions for the Actual Runtime Logic ####
 #### ============================================= ####
 
-def git_clean(removeSliceGenerated):
+def git_clean(excludePatterns):
     time.sleep(0.5);
     try:
-        args = ["git", "clean", "-dqfx"] + ([] if removeSliceGenerated else ["-e", "_slice_gen_*"]);
+        args = ["git", "clean", "-dqfx"];
+        for pattern in excludePatterns:
+            args.extend(["-e", pattern]);
+
         result = subprocess.run(args, check=True, env=ENVIRONMENT, stdout=OUTPUT_TO);
         if DEBUGGING: print("    >> RESULT 'git clean -dqfx ...' = '" + str(result) + "'");
     except subprocess.CalledProcessError as ex:
@@ -312,7 +315,7 @@ os.chdir(REPO_ROOT);
 generatedDirectoriesAndCommitMessages = [];
 
 # Then, do a preliminary clean and reset, to make sure we're in a known state.
-git_clean(True);
+git_clean();
 git_reset();
 
 # Then, we want to compile the slice Files against each provided branch.
@@ -322,7 +325,7 @@ for index,branch in enumerate(branches):
     # Checkout the branch, and perform a clean build.
     if DEBUGGING: print("================================================================================");
     branchName, branchID = git_checkout(branch);
-    git_clean(False);
+    git_clean("_slice_gen_*");
 
     print("Building '" + branchName + " @ " + branchID + "'...");
     build();
@@ -391,5 +394,8 @@ for generatedDir, commitMessage in generatedDirectoriesAndCommitMessages:
 
 # And finally, we move the now fully completed `.git` folder back into it's original repository (`compareDir`).
 moveDir(os.path.join(lastDir, ".git"), compareDir);
+
+# Okay, now the actual last step, we do a final clean to remove everything except the new git repository we created.
+git_clean("_slice_compare_");
 
 # TODO add some analysis here at the end I guess.
