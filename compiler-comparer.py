@@ -235,7 +235,7 @@ print("A total of " + str(len(sliceFiles)) + " Slice files will be compiled.");
 #### Define Functions for the Actual Runtime Logic ####
 #### ============================================= ####
 
-def git_clean(excludePatterns):
+def git_clean(excludePatterns = []):
     time.sleep(0.5);
     try:
         args = ["git", "clean", "-dqfx"];
@@ -325,7 +325,7 @@ for index,branch in enumerate(branches):
     # Checkout the branch, and perform a clean build.
     if DEBUGGING: print("================================================================================");
     branchName, branchID = git_checkout(branch);
-    git_clean("_slice_gen_*");
+    git_clean(["_slice_gen_*"]);
 
     print("Building '" + branchName + " @ " + branchID + "'...");
     build();
@@ -387,15 +387,18 @@ for generatedDir, commitMessage in generatedDirectoriesAndCommitMessages:
     moveDir(os.path.join(lastDir, ".git"), generatedDir);
     result = subprocess.run(["git", "-C", generatedDir, "add", "--all"], check=True, env=ENVIRONMENT, stdout=OUTPUT_TO);
     if DEBUGGING: print("    >> RESULT 'git ... add --all' = '" + str(result) + "'");
-    message = generatedDir[13:] + "\n" + commitMessage;
+    message = os.path.basename(generatedDir)[13:] + ":\n" + commitMessage;
     result = subprocess.run(["git", "-C", generatedDir, "commit", "-m", message], check=True, env=ENVIRONMENT, stdout=OUTPUT_TO);
     if DEBUGGING: print("    >> RESULT 'git ... commit -m ...' = '" + str(result) + "'");
     lastDir = generatedDir;
 
-# And finally, we move the now fully completed `.git` folder back into it's original repository (`compareDir`).
+# Finally, we move the now fully completed `.git` folder back into it's original repository (`compareDir`).
+# And do a hard reset in it, so that it doesn't look like all it's files were deleted when you interact with it.
 moveDir(os.path.join(lastDir, ".git"), compareDir);
+result = subprocess.run(["git", "-C", compareDir, "reset", "--hard"], check=True, env=ENVIRONMENT, stdout=OUTPUT_TO);
+if DEBUGGING: print("    >> RESULT 'git ... reset --hard' = '" + str(result) + "'");
 
 # Okay, now the actual last step, we do a final clean to remove everything except the new git repository we created.
-git_clean("_slice_compare_");
+git_clean(["_slice_compare_"]);
 
 # TODO add some analysis here at the end I guess.
