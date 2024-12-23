@@ -94,7 +94,7 @@ for index, arg in enumerate(sys.argv[1:]):
         if DEBUGGING: print("    >> Parsed '" + branches[-1] + "' from '" + LONG_BRANCH + "'");
     elif arg.startswith(BACK_TRACK):
         backTrack = int((arg[len(BACK_TRACK):]));
-        if DEBUGGING: print("    >> Parsed '" + backTrack + "' from '" + BACK_TRACK + "'");
+        if DEBUGGING: print("    >> Parsed '" + str(backTrack) + "' from '" + BACK_TRACK + "'");
     elif arg.startswith(PROJ_PATH):
         projPath = arg[len(PROJ_PATH):];
         if DEBUGGING: print("    >> Parsed '" + projPath + "' from '" + PROJ_PATH + "'");
@@ -174,7 +174,7 @@ if backTrack != None:
     if len(branches) != 0:
         print("ERROR: you cannot specify branches and a back-track count at the same time");
         exit(15);
-    if DEBUGGING: print("    >> branches has been set to backtrack " + backTrack + " times");
+    if DEBUGGING: print("    >> branches has been set to backtrack " + str(backTrack) + " times");
     backCommits = [("HEAD~" + str(i)) for i in range(backTrack + 1)];
     backCommits.reverse();
     for commit in backCommits:
