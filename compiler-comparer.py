@@ -334,6 +334,16 @@ def mv(sourceDir, destinationDir):
 #### Let's Actually Do Some Stuff Now! ####
 #### ================================= ####
 
+# This is the path where we're going to store all the results.
+# We don't create it yet, just compute what the path is and store it.
+compareDir = os.path.join(REPO_ROOT, "_slice_compare_");
+# If this path already exists, we check if there is a '.git' directory in it.
+# This is expected if this script has already been run before. But, before we start this run,
+# we have to rename this folder to anything else, otherwise when we run `git clean` it won't properly
+# deal with this folder, since it treats it as a separate git repository.
+if os.path.exists(os.path.join(compareDir, ".git")):
+    moveDir(os.path.join(compareDir, ".git"), os.path.join(compareDir, "plz-delete"))
+
 try:
     # First, navigate to the repo root. It's easier if we're running in a known location.
     os.chdir(REPO_ROOT);
@@ -343,7 +353,6 @@ try:
     git_reset();
 
     # Create a new directory that we'll use as scratch space for comparing the generated code.
-    compareDir = os.path.join(REPO_ROOT, "_slice_compare_");
     Path(compareDir).mkdir();
 
     # Initialize a git repository in that directory. We utilize git to do the diffing for us!
