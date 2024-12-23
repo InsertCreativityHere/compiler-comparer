@@ -61,6 +61,7 @@ def printHelp():
 # Declare all the parameters this script can accept.
 compilers = [];
 branches = [];
+backTrack = None;
 sliceFiles = [];
 projPath = "";
 compilersPath = "";
@@ -71,6 +72,7 @@ SHORT_COMPILER = "-c=";
 LONG_COMPILER = "--compiler=";
 SHORT_BRANCH = "-b=";
 LONG_BRANCH = "--branch=";
+BACK_TRACK = "--back-track=";
 PROJ_PATH = "--proj-path=";
 COMPILERS_PATH = "--compilers-path=";
 PYTHON_PATH = "--python-path=";
@@ -90,6 +92,9 @@ for index, arg in enumerate(sys.argv[1:]):
     elif arg.startswith(LONG_BRANCH):
         branches.append(arg[len(LONG_BRANCH):]);
         if DEBUGGING: print("    >> Parsed '" + branches[-1] + "' from '" + LONG_BRANCH + "'");
+    elif arg.startswith(BACK_TRACK):
+        backTrack = int((arg[len(BACK_TRACK):]));
+        if DEBUGGING: print("    >> Parsed '" + backTrack + "' from '" + BACK_TRACK + "'");
     elif arg.startswith(PROJ_PATH):
         projPath = arg[len(PROJ_PATH):];
         if DEBUGGING: print("    >> Parsed '" + projPath + "' from '" + PROJ_PATH + "'");
@@ -107,6 +112,10 @@ for index, arg in enumerate(sys.argv[1:]):
         sliceFiles.extend(sys.argv[index+1:]);
         if DEBUGGING: print("    >> Entered argument mode at index '" + str(index) + "'. There were '" + str(len(sys.argv[index+1:])) + "' arguments left");
         break;
+    elif arg.startswith("-"):
+        print("ERROR: unknown option: '" + arg + "'");
+        printHelp();
+        exit(3);
     else:
         sliceFiles.append(arg);
         if DEBUGGING: print("    >> Parsed '" + sliceFiles[-1] + "' as a Slice file");
@@ -118,6 +127,7 @@ if DEBUGGING:
     print("    >> ================================================");
     print("    >> compilers = '" + str(compilers) + "'");
     print("    >> branches = '" + str(branches) + "'");
+    print("    >> backTrack = '" + str(backTrack) + "'");
     print("    >> sliceFiles = '" + str(sliceFiles) + "'");
     print("    >> projPath = '" + str(projPath) + "'");
     print("    >> compilersPath = '" + str(compilersPath) + "'");
@@ -149,12 +159,20 @@ if len(compilers) == 0:
     compilers.remove("ice2slice");
     if DEBUGGING: print("    >> No compilers were specified. Setting to '" + str(compilers) + "'");
 
-# If no branches were specified, we default to using the current branch.
-if len(branches) == 0:
+# If no branches were specified, and we aren't backtracking, we default to using the current branch.
+if len(branches) == 0 and backTrack == None:
     result = subprocess.run(["git", "rev-parse", "--abbrev-ref", "HEAD"], check=True, capture_output=True);
     if DEBUGGING: print("    >> RESULT 'git rev-parse --abbrev-ref HEAD' = '" + str(result) + "'");
     branches = [result.stdout.decode("utf-8").strip()];
     if DEBUGGING: print("    >> No branches were specified. Setting to current branch '" + str(branches[0]) + "'");
+
+# If we're backtracking, make sure no branches were specified, and then abuse the 'branches' field to backtrack.
+if backTrack != None:
+    if len(branches) != 0:
+        print("ERROR: you cannot specify branches and a back-track count at the same time");
+        exit(15);
+    branches = ["HEAD"] + (["HEAD~1"] * backTrack);
+    if DEBUGGING: print("    >> branches has been set to backtrack " + backTrack + " times");
 
 # If no slice files were provided, we want to recursively get ALL the slice files in the current directory.
 if len(sliceFiles) == 0:
@@ -376,6 +394,9 @@ for branch in branches:
 
     # We're done with this branch!
     print("Finished!");
+    if backTrack != None:
+        print("Backtrack iterations remaining: " + backTrack);
+        backTrack -= 1;
 
 # Finally, we do a hard reset on our now fully completed scratch git repository,
 # so that it doesn't look like all it's files were deleted when you interact with it.
