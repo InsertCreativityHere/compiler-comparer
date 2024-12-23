@@ -367,7 +367,7 @@ if DEBUGGING:
 
 # Create a new directory that we'll use as scratch space for comparing the generated code.
 compareDir = os.path.join(REPO_ROOT, "_slice_compare_");
-Path(compareDir).mkdir();
+Path(compareDir).mkdir(exist_ok=True);
 
 # Initialize a git repository in that directory. We utilize git to do the diffing for us!
 result = subprocess.run(["git", "-c", "init.defaultBranch=master", "-C", compareDir, "init"], check=True, env=ENVIRONMENT, stdout=OUTPUT_TO);
