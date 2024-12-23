@@ -313,9 +313,6 @@ def mv(sourceDir, destinationDir):
 # First, navigate to the repo root. It's easier if we're running in a known location.
 os.chdir(REPO_ROOT);
 
-# Keep a list of all the directories we've generated, and their corresponding commit messages, for later.
-generatedDirectoriesAndCommitMessages = [];
-
 # Then, do a preliminary clean and reset, to make sure we're in a known state.
 git_clean();
 git_reset();
@@ -332,8 +329,8 @@ if DEBUGGING: print("    >> RESULT 'git ... config user.name temp' = '" + str(re
 result = subprocess.run(["git", "-C", compareDir, "config", "user.email", "temp@zeroc.com"], check=True, env=ENVIRONMENT, stdout=OUTPUT_TO);
 if DEBUGGING: print("    >> RESULT 'git ... config user.email temp@zeroc.com' = '" + str(result) + "'");
 
-# Then, we want to compile the slice Files against each provided branch.
-for index,branch in enumerate(branches):
+# Then, we want to compile the slice Files against each provided branch, and store them in this scratch git repository.
+for branch in branches:
     print();
 
     # Checkout the branch, and perform a clean build.
@@ -348,14 +345,8 @@ for index,branch in enumerate(branches):
 
     # If the build succeeded, next we want to run the Slice compilers over the Slice files.
     # So we create a directory to output the generated code into, and then run through the compilers.
-    outputDirBase = os.path.join(REPO_ROOT, "_slice_gen_" + str(index) + "_" + branchName + "_" + branchID);
+    outputDirBase = os.path.join(REPO_ROOT, "_slice_gen_" + branchName + "_" + branchID);
     Path(outputDirBase).mkdir(parents=True, exist_ok=True);
-
-    # We also grab the commit message corresponding to this branch's latest commit.
-    # So we can print it out later to improve readability and diff navigation for the end-user.
-    result = subprocess.run(["git", "log", "--format=%B", "-n", "1", branchID], check=True, capture_output=True);
-    branchMessage = result.stdout.decode("utf-8").strip();
-    generatedDirectoriesAndCommitMessages.append([outputDirBase, branchMessage]);
 
     # Run all the Slice compilers!
     for compiler in compilers:
@@ -365,31 +356,32 @@ for index,branch in enumerate(branches):
             Path(outputDir).mkdir(parents=True, exist_ok=True);
             sliceCompile(compiler, "./" + file, outputDir);
 
+    print("    Storing generated code...");
+
+    # Grab the commit message of this branch's latest commit; we want to include this information in our scratch repo.
+    result = subprocess.run(["git", "log", "--format=%B", "-n", "1", branchID], check=True, capture_output=True);
+    branchMessage = result.stdout.decode("utf-8").strip();
+    if DEBUGGING: print("    >> RESULT 'retrieved commit message of '" + str(branchMessage) + "'");
+
+    # Now that we've generated all the code we care about into this '_slice_gen_*' folder,
+    # We rip out the core '.git' folder from our scratch repo, and move into this '_slice_gen_*' folder.
+    moveDir(os.path.join(compareDir, ".git"), outputDirBase);
+
+    # We commit the contents of this '_slice_gen_*' folder, so that the '.git' will capture it.
+    result = subprocess.run(["git", "-C", outputDirBase, "add", "--all"], check=True, env=ENVIRONMENT, stdout=OUTPUT_TO);
+    if DEBUGGING: print("    >> RESULT 'git ... add --all' = '" + str(result) + "'");
+    message = os.path.basename(outputDirBase)[13:] + ":\n" + branchMessage;
+    result = subprocess.run(["git", "-C", outputDirBase, "commit", "-m", message], check=True, env=ENVIRONMENT, stdout=OUTPUT_TO);
+    if DEBUGGING: print("    >> RESULT 'git ... commit -m ...' = '" + str(result) + "'");
+
+    # Now that we've captured the state of the generated code, move the '.git' back to where it belongs,
+    moveDir(os.path.join(outputDirBase, ".git"), compareDir);
+
     # We're done with this branch!
     print("Finished!");
 
-
-
-
-#### ======================================== ####
-#### Check the Generated Code for Differences ####
-#### ======================================== ####
-
-# Then we rip out the `.git` folder from this repo and move it, one by one, into each of the generated directories.
-# We commit the contents of that directory, so that the `.git` will capture it as a commit, which can be compared to others.
-lastDir = compareDir;
-for generatedDir, commitMessage in generatedDirectoriesAndCommitMessages:
-    moveDir(os.path.join(lastDir, ".git"), generatedDir);
-    result = subprocess.run(["git", "-C", generatedDir, "add", "--all"], check=True, env=ENVIRONMENT, stdout=OUTPUT_TO);
-    if DEBUGGING: print("    >> RESULT 'git ... add --all' = '" + str(result) + "'");
-    message = os.path.basename(generatedDir)[13:] + ":\n" + commitMessage;
-    result = subprocess.run(["git", "-C", generatedDir, "commit", "-m", message], check=True, env=ENVIRONMENT, stdout=OUTPUT_TO);
-    if DEBUGGING: print("    >> RESULT 'git ... commit -m ...' = '" + str(result) + "'");
-    lastDir = generatedDir;
-
-# Finally, we move the now fully completed `.git` folder back into it's original repository (`compareDir`).
-# And do a hard reset in it, so that it doesn't look like all it's files were deleted when you interact with it.
-moveDir(os.path.join(lastDir, ".git"), compareDir);
+# Finally, we do a hard reset on our now fully completed scratch git repository,
+# so that it doesn't look like all it's files were deleted when you interact with it.
 result = subprocess.run(["git", "-C", compareDir, "reset", "--hard"], check=True, env=ENVIRONMENT, stdout=OUTPUT_TO);
 if DEBUGGING: print("    >> RESULT 'git ... reset --hard' = '" + str(result) + "'");
 
