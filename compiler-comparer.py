@@ -377,15 +377,19 @@ if DEBUGGING: print("    >> RESULT 'git ... config user.name temp' = '" + str(re
 result = subprocess.run(["git", "-C", compareDir, "config", "user.email", "temp@zeroc.com"], check=True, env=ENVIRONMENT, stdout=OUTPUT_TO);
 if DEBUGGING: print("    >> RESULT 'git ... config user.email temp@zeroc.com' = '" + str(result) + "'");
 
-# Then, we go through the generated code for each branch run, copy their generated code into this folder, and commit them.
-# So, each commit in this repository represents one of the branches that we executed a compiler run for. In order.
-# Comparing any 2 commits in this repo will show you the changes (if any) in the generated code.
-for generatedDir in generatedDirectories:
-    copyDirContents(generatedDir, compareDir);
-    # TODO # Copy generatedDirectories[0] into compareDir
-    result = subprocess.run(["git", "-C", compareDir, "add", "--all"], check=True, env=ENVIRONMENT, stdout=OUTPUT_TO);
+# Then we rip out the `.git` folder from this repo and move it, one by one, into each of the generated directories.
+# We commit the contents of that directory, so that the `.git` will capture it as a commit, which can be compared to others.
+lastDir = compareDir;
+for generatedDir, commitMessage in generatedDirectoriesAndCommitMessages:
+    moveDir(os.path.join(lastDir, ".git"), generatedDir);
+    result = subprocess.run(["git", "-C", generatedDir, "add", "--all"], check=True, env=ENVIRONMENT, stdout=OUTPUT_TO);
     if DEBUGGING: print("    >> RESULT 'git ... add --all' = '" + str(result) + "'");
-    result = subprocess.run(["git", "-C", compareDir, "commit", "-m", generatedDirectories[0][10:]], check=True, env=ENVIRONMENT, stdout=OUTPUT_TO);
+    message = generatedDir[13:] + "\n" + commitMessage;
+    result = subprocess.run(["git", "-C", generatedDir, "commit", "-m", message], check=True, env=ENVIRONMENT, stdout=OUTPUT_TO);
     if DEBUGGING: print("    >> RESULT 'git ... commit -m ...' = '" + str(result) + "'");
+    lastDir = generatedDir;
+
+# And finally, we move the now fully completed `.git` folder back into it's original repository (`compareDir`).
+moveDir(os.path.join(lastDir, ".git"), compareDir);
 
 # TODO add some analysis here at the end I guess.
