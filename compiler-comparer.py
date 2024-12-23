@@ -309,7 +309,7 @@ def mv(sourceDir, destinationDir):
 os.chdir(REPO_ROOT);
 
 # Keep a list of all the directories we've generated, and their corresponding commit messages, for later.
-generatedDirectoriesAndCommitMessage = [];
+generatedDirectoriesAndCommitMessages = [];
 
 # Then, do a preliminary clean and reset, to make sure we're in a known state.
 git_clean(True);
@@ -338,7 +338,7 @@ for index,branch in enumerate(branches):
     # So we can print it out later to improve readability and diff navigation for the end-user.
     result = subprocess.run(["git", "log", "--format=%B", "-n", "1", branchID], check=True, capture_output=True);
     branchMessage = result.stdout.decode("utf-8").strip();
-    generatedDirectoriesAndCommitMessage.append([outputDirBase, branchMessage]);
+    generatedDirectoriesAndCommitMessages.append([outputDirBase, branchMessage]);
 
     # Run all the Slice compilers!
     for compiler in compilers:
