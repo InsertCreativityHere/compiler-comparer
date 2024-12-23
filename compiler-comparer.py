@@ -287,7 +287,8 @@ def sliceCompile(compiler, sliceFile, outputDir):
     result = subprocess.run([compiler, "--output-dir", outputDir, "-I./slice", "-I" + os.path.dirname(sliceFile), sliceFile], check=True, env=ENVIRONMENT, stdout=OUTPUT_TO);
     if DEBUGGING: print("    >> RESULT '" + str(compiler) + "--output-dir <outputPath> -Islice -I<parentPath> <file>' = '" + str(result) + "'");
 
-
+def copyDirContents(sourceDir, destination):
+    pass; # TODO
 
 
 #### ================================= ####
@@ -349,14 +350,27 @@ if DEBUGGING:
     print("    >> ==============================================");
     print();
 
-# First, we want to build a table of all the generated files, and which directory they came from.
-generatedCode = [];
-for dir in generatedDirectories:
-    generatedCode.append([]);
-    if DEBUGGING: print("    >> Discovering files in top-level directory '" + dir + "'");
-    for root, dirs, files in os.walk(dir):
-        if DEBUGGING: print("    >>     Entered folder '" + root + "'. Discovered " + str(len(dirs)) + " dirs and " + str(len(files)) + " files");
-        generatedCode[-1].extend([os.path.join(root, f) for f in files]);
-        if DEBUGGING: print("    >>         The files being added are: " + str(files));
+# Create a new directory that we'll use as scratch space for comparing the generated code.
+compareDir = os.path.join(REPO_ROOT, "_slice_compare_");
+Path(compareDir).mkdir();
 
-# Then, let's start comparing them in order.
+# Initialize a git repository in that directory. We utilize git to do the diffing for us!
+result = subprocess.run(["git", "-C", compareDir, "init"], check=True, env=ENVIRONMENT, stdout=OUTPUT_TO);
+if DEBUGGING: print("    >> RESULT 'git ... init' = '" + str(result) + "'");
+result = subprocess.run(["git", "-C", compareDir, "config", "user.name", "temp"], check=True, env=ENVIRONMENT, stdout=OUTPUT_TO);
+if DEBUGGING: print("    >> RESULT 'git ... config user.name temp' = '" + str(result) + "'");
+result = subprocess.run(["git", "-C", compareDir, "config", "user.email", "temp@zeroc.com"], check=True, env=ENVIRONMENT, stdout=OUTPUT_TO);
+if DEBUGGING: print("    >> RESULT 'git ... config user.email temp@zeroc.com' = '" + str(result) + "'");
+
+# Then, we go through the generated code for each branch run, copy their generated code into this folder, and commit them.
+# So, each commit in this repository represents one of the branches that we executed a compiler run for. In order.
+# Comparing any 2 commits in this repo will show you the changes (if any) in the generated code.
+for generatedDir in generatedDirectories:
+    copyDirContents(generatedDir, compareDir);
+    # TODO # Copy generatedDirectories[0] into compareDir
+    result = subprocess.run(["git", "-C", compareDir, "add", "--all"], check=True, env=ENVIRONMENT, stdout=OUTPUT_TO);
+    if DEBUGGING: print("    >> RESULT 'git ... add --all' = '" + str(result) + "'");
+    result = subprocess.run(["git", "-C", compareDir, "commit", "-m", generatedDirectories[0][10:]], check=True, env=ENVIRONMENT, stdout=OUTPUT_TO);
+    if DEBUGGING: print("    >> RESULT 'git ... commit -m ...' = '" + str(result) + "'");
+
+# TODO add some analysis here at the end I guess.
