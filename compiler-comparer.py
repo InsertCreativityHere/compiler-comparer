@@ -237,13 +237,10 @@ print("A total of " + str(len(sliceFiles)) + " Slice files will be compiled.");
 #### Define Functions for the Actual Runtime Logic ####
 #### ============================================= ####
 
-def git_clean(excludePatterns = []):
+def git_clean(fullClean):
     time.sleep(0.5);
     try:
-        args = ["git", "clean", "-dqfx"];
-        for pattern in excludePatterns:
-            args.extend(["-e", pattern]);
-
+        args = ["git", "clean", "-dqfx"] + ([] if fullClean else ["-e", "_slice_compare_"]);
         result = subprocess.run(args, check=True, env=ENVIRONMENT, stdout=OUTPUT_TO);
         if DEBUGGING: print("    >> RESULT 'git clean -dqfx ...' = '" + str(result) + "'");
     except subprocess.CalledProcessError as ex:
@@ -314,7 +311,7 @@ def mv(sourceDir, destinationDir):
 os.chdir(REPO_ROOT);
 
 # Then, do a preliminary clean and reset, to make sure we're in a known state.
-git_clean();
+git_clean(True);
 git_reset();
 
 # Create a new directory that we'll use as scratch space for comparing the generated code.
@@ -336,7 +333,7 @@ for branch in branches:
     # Checkout the branch, and perform a clean build.
     if DEBUGGING: print("================================================================================");
     branchName, branchID = git_checkout(branch);
-    git_clean(["_slice_gen_*, _slice_compare_"]);
+    git_clean(False);
 
     print("Building '" + branchName + " @ " + branchID + "'...");
     build();
@@ -386,7 +383,7 @@ result = subprocess.run(["git", "-C", compareDir, "reset", "--hard"], check=True
 if DEBUGGING: print("    >> RESULT 'git ... reset --hard' = '" + str(result) + "'");
 
 # Okay, now the actual last step, we do a final clean to remove everything except the new git repository we created.
-git_clean(["_slice_compare_"]);
+git_clean(False);
 
 # TODO add some analysis here at the end I guess.
 print();
