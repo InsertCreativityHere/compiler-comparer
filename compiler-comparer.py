@@ -308,7 +308,8 @@ def make():
 
 def sliceCompile(compiler, sliceFile, outputDir):
     time.sleep(0.01);
-    result = subprocess.run([compiler, "--output-dir", outputDir, "-I./slice", "-I" + os.path.dirname(sliceFile), sliceFile], check=True, env=ENVIRONMENT, stdout=OUTPUT_TO);
+    # We set `check=False` here to tolerate when the Slice compiler encounters errors. Otherwise one error kills this whole script.
+    result = subprocess.run([compiler, "--output-dir", outputDir, "-I./slice", "-I" + os.path.dirname(sliceFile), sliceFile], check=False, env=ENVIRONMENT, stdout=OUTPUT_TO);
     if DEBUGGING: print("    >> RESULT '" + str(compiler) + "--output-dir <outputPath> -Islice -I<parentPath> <file>' = '" + str(result) + "'");
 
 def moveDir(sourceDir, destinationDir):
