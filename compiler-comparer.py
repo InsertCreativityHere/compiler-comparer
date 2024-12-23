@@ -320,6 +320,18 @@ generatedDirectoriesAndCommitMessages = [];
 git_clean();
 git_reset();
 
+# Create a new directory that we'll use as scratch space for comparing the generated code.
+compareDir = os.path.join(REPO_ROOT, "_slice_compare_");
+Path(compareDir).mkdir(exist_ok=True);
+
+# Initialize a git repository in that directory. We utilize git to do the diffing for us!
+result = subprocess.run(["git", "-c", "init.defaultBranch=master", "-C", compareDir, "init"], check=True, env=ENVIRONMENT, stdout=OUTPUT_TO);
+if DEBUGGING: print("    >> RESULT 'git -c init.defaultBranch=master ... init' = '" + str(result) + "'");
+result = subprocess.run(["git", "-C", compareDir, "config", "user.name", "temp"], check=True, env=ENVIRONMENT, stdout=OUTPUT_TO);
+if DEBUGGING: print("    >> RESULT 'git ... config user.name temp' = '" + str(result) + "'");
+result = subprocess.run(["git", "-C", compareDir, "config", "user.email", "temp@zeroc.com"], check=True, env=ENVIRONMENT, stdout=OUTPUT_TO);
+if DEBUGGING: print("    >> RESULT 'git ... config user.email temp@zeroc.com' = '" + str(result) + "'");
+
 # Then, we want to compile the slice Files against each provided branch.
 for index,branch in enumerate(branches):
     print();
@@ -327,7 +339,7 @@ for index,branch in enumerate(branches):
     # Checkout the branch, and perform a clean build.
     if DEBUGGING: print("================================================================================");
     branchName, branchID = git_checkout(branch);
-    git_clean(["_slice_gen_*"]);
+    git_clean(["_slice_gen_*, _slice_compare_"]);
 
     print("Building '" + branchName + " @ " + branchID + "'...");
     build();
@@ -362,18 +374,6 @@ for index,branch in enumerate(branches):
 #### ======================================== ####
 #### Check the Generated Code for Differences ####
 #### ======================================== ####
-
-# Create a new directory that we'll use as scratch space for comparing the generated code.
-compareDir = os.path.join(REPO_ROOT, "_slice_compare_");
-Path(compareDir).mkdir(exist_ok=True);
-
-# Initialize a git repository in that directory. We utilize git to do the diffing for us!
-result = subprocess.run(["git", "-c", "init.defaultBranch=master", "-C", compareDir, "init"], check=True, env=ENVIRONMENT, stdout=OUTPUT_TO);
-if DEBUGGING: print("    >> RESULT 'git -c init.defaultBranch=master ... init' = '" + str(result) + "'");
-result = subprocess.run(["git", "-C", compareDir, "config", "user.name", "temp"], check=True, env=ENVIRONMENT, stdout=OUTPUT_TO);
-if DEBUGGING: print("    >> RESULT 'git ... config user.name temp' = '" + str(result) + "'");
-result = subprocess.run(["git", "-C", compareDir, "config", "user.email", "temp@zeroc.com"], check=True, env=ENVIRONMENT, stdout=OUTPUT_TO);
-if DEBUGGING: print("    >> RESULT 'git ... config user.email temp@zeroc.com' = '" + str(result) + "'");
 
 # Then we rip out the `.git` folder from this repo and move it, one by one, into each of the generated directories.
 # We commit the contents of that directory, so that the `.git` will capture it as a commit, which can be compared to others.
