@@ -166,13 +166,18 @@ if len(branches) == 0 and backTrack == None:
     branches = [result.stdout.decode("utf-8").strip()];
     if DEBUGGING: print("    >> No branches were specified. Setting to current branch '" + str(branches[0]) + "'");
 
-# If we're backtracking, make sure no branches were specified, and then abuse the 'branches' field to backtrack.
+# If we're backtracking, make sure no branches were specified, and then re-use the 'branches' field.
 if backTrack != None:
     if len(branches) != 0:
         print("ERROR: you cannot specify branches and a back-track count at the same time");
         exit(15);
-    branches = ["HEAD"] + (["HEAD~1"] * backTrack);
     if DEBUGGING: print("    >> branches has been set to backtrack " + backTrack + " times");
+    backCommits = [("HEAD~" + str(i)) for i in range(backTrack + 1)];
+    backCommits.reverse();
+    for commit in backCommits:
+        result = subprocess.run(["git", "rev-parse", commit], check=True, capture_output=True);
+        if DEBUGGING: print("    >> RESULT 'git rev-parse ...' = '" + str(result) + "'");
+        branches.append(result.stdout.decode("utf-8").strip());
 
 # If no slice files were provided, we want to recursively get ALL the slice files in the current directory.
 if len(sliceFiles) == 0:
@@ -395,7 +400,7 @@ for branch in branches:
     # We're done with this branch!
     print("Finished!");
     if backTrack != None:
-        print("Backtrack iterations remaining: " + backTrack);
+        print("Backtrack iterations remaining: '" + str(backTrack) + "'");
         backTrack -= 1;
 
 # Finally, we do a hard reset on our now fully completed scratch git repository,
