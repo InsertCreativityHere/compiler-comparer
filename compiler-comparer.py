@@ -263,7 +263,7 @@ def git_checkout(branchName):
 
     result1 = subprocess.run(["git", "rev-parse", "--abbrev-ref", "HEAD"], check=True, capture_output=True);
     result2 = subprocess.run(["git", "rev-parse", "--short", "HEAD"], check=True, capture_output=True);
-    return result1.stdout.decode("utf-8").strip() + "_" + result2.stdout.decode("utf-8").strip();
+    return [result1.stdout.decode("utf-8").strip(), result2.stdout.decode("utf-8").strip()];
 
 def build():
     time.sleep(0.5);
@@ -308,8 +308,8 @@ def mv(sourceDir, destinationDir):
 # First, navigate to the repo root. It's easier if we're running in a known location.
 os.chdir(REPO_ROOT);
 
-# Keep a list of all the directories we've generated for later.
-generatedDirectories = [];
+# Keep a list of all the directories we've generated, and their corresponding commit messages, for later.
+generatedDirectoriesAndCommitMessage = [];
 
 # Then, do a preliminary clean and reset, to make sure we're in a known state.
 git_clean(True);
@@ -321,19 +321,24 @@ for index,branch in enumerate(branches):
 
     # Checkout the branch, and perform a clean build.
     if DEBUGGING: print("================================================================================");
-    branchID = git_checkout(branch);
+    branchName, branchID = git_checkout(branch);
     git_clean(False);
 
-    print("Building '" + branchID + "'...");
+    print("Building '" + branchName + "@" + branchID + "'...");
     build();
     if DEBUGGING: print("================================================================================");
     print("Build complete!");
 
     # If the build succeeded, next we want to run the Slice compilers over the Slice files.
     # So we create a directory to output the generated code into, and then run through the compilers.
-    outputDirBase = os.path.join(REPO_ROOT, "_slice_gen_" + str(index) + "_" + branchID);
+    outputDirBase = os.path.join(REPO_ROOT, "_slice_gen_" + str(index) + "_" + branchName + "_" + branchID);
     Path(outputDirBase).mkdir(parents=True, exist_ok=True);
-    generatedDirectories.append(outputDirBase);
+
+    # We also grab the commit message corresponding to this branch's latest commit.
+    # So we can print it out later to improve readability and diff navigation for the end-user.
+    result = subprocess.run(["git", "log", "--format=%B", "-n", "1", branchID], check=True, capture_output=True);
+    branchMessage = result.stdout.decode("utf-8").strip();
+    generatedDirectoriesAndCommitMessage.append([outputDirBase, branchMessage]);
 
     # Run all the Slice compilers!
     for compiler in compilers:
