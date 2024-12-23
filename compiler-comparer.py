@@ -389,3 +389,6 @@ if DEBUGGING: print("    >> RESULT 'git ... reset --hard' = '" + str(result) + "
 git_clean(["_slice_compare_"]);
 
 # TODO add some analysis here at the end I guess.
+print();
+print("The results of this script have been stored in the '" + compareDir + "' directory.");
+print();
