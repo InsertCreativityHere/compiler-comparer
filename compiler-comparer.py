@@ -286,9 +286,20 @@ def sliceCompile(compiler, sliceFile, outputDir):
     result = subprocess.run([compiler, "--output-dir", outputDir, "-I./slice", "-I" + os.path.dirname(sliceFile), sliceFile], check=True, env=ENVIRONMENT, stdout=OUTPUT_TO);
     if DEBUGGING: print("    >> RESULT '" + str(compiler) + "--output-dir <outputPath> -Islice -I<parentPath> <file>' = '" + str(result) + "'");
 
-def copyDirContents(sourceDir, destination):
-    pass; # TODO
+def moveDir(sourceDir, destinationDir):
+    time.sleep(0.5);
+    if IS_WINDOWS:
+        move(sourceDir, destinationDir);
+    else:
+        mv(sourceDir, destinationDir);
 
+def move(sourceDir, destinationDir):
+    result = subprocess.run(["move", "/y", sourceDir, destinationDir], check=True, env=ENVIRONMENT, stdout=OUTPUT_TO);
+    if DEBUGGING: print("    >> RESULT 'move /y ...' = '" + str(result) + "'");
+
+def mv(sourceDir, destinationDir):
+    result = subprocess.run(["mv", "-f", sourceDir, destinationDir], check=True, env=ENVIRONMENT, stdout=OUTPUT_TO);
+    if DEBUGGING: print("    >> RESULT 'mv -f ...' = '" + str(result) + "'");
 
 #### ================================= ####
 #### Let's Actually Do Some Stuff Now! ####
