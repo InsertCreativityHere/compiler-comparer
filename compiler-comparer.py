@@ -266,18 +266,17 @@ def git_checkout(branchName):
     return result1.stdout.decode("utf-8").strip() + "_" + result2.stdout.decode("utf-8").strip();
 
 def build():
+    time.sleep(0.5);
     if IS_WINDOWS:
         msbuild();
     else:
         make();
 
 def msbuild():
-    time.sleep(0.5);
     result = subprocess.run(["msbuild", projPath, "/target:BuildDist", "/p:Configuration=Debug", "/p:Platform=x64", "/p:PythonHome=\"" + pythonPath + "\"", "/m", "/nr:false"], check=True, env=ENVIRONMENT, stdout=OUTPUT_TO);
     if DEBUGGING: print("    >> RESULT 'msbuild ...' = '" + str(result) + "'");
 
 def make():
-    time.sleep(0.5);
     args = ["make", "-C", os.path.dirname(projPath)] + [os.path.basename(c) for c in compilers];
     result = subprocess.run(args, check=True, env=ENVIRONMENT, stdout=OUTPUT_TO);
     if DEBUGGING: print("    >> RESULT 'make ...' = '" + str(result) + "'");
