@@ -306,16 +306,16 @@ def msbuild():
     if DEBUGGING: print("    >> RESULT 'msbuild ...' = '" + str(result) + "'");
 
 def make():
-    args = ["make", "-C", os.path.dirname(projPath)] + [os.path.basename(c) for c in compilers];
+    args = ["make", "-j", "-C", os.path.dirname(projPath)] + [os.path.basename(c) for c in compilers];
     result = subprocess.run(args, check=True, env=ENVIRONMENT, stdout=OUTPUT_TO);
-    if DEBUGGING: print("    >> RESULT 'make ...' = '" + str(result) + "'");
+    if DEBUGGING: print("    >> RESULT 'make -j ...' = '" + str(result) + "'");
 
 def sliceCompile(compiler, sliceFile, outputDir):
     time.sleep(0.002);
     # We set `check=False` here to tolerate when the Slice compiler encounters errors. Otherwise one error kills this whole script.
     parentDir = os.path.dirname(sliceFile);
     result = subprocess.run([compiler, "--output-dir", outputDir, "-I./slice", "-I" + parentDir, "-I" + os.path.dirname(parentDir), sliceFile], check=False, env=ENVIRONMENT, stdout=OUTPUT_TO);
-    if DEBUGGING: print("    >> RESULT '" + str(compiler) + "--output-dir <outputPath> -Islice -I<parentPath> <file>' = '" + str(result) + "'");
+    if DEBUGGING: print("    >> RESULT '" + str(compiler) + " --output-dir <outputPath> -Islice -I<parentPath> <file>' = '" + str(result) + "'");
 
 def moveDir(sourceDir, destinationDir):
     time.sleep(0.5);
