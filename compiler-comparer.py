@@ -295,7 +295,7 @@ def git_checkout(branchName):
     return [result1.stdout.decode("utf-8").strip(), result2.stdout.decode("utf-8").strip()];
 
 def build():
-    time.sleep(0.5);
+    time.sleep(0.2);
     if IS_WINDOWS:
         msbuild();
     else:
@@ -311,7 +311,7 @@ def make():
     if DEBUGGING: print("    >> RESULT 'make ...' = '" + str(result) + "'");
 
 def sliceCompile(compiler, sliceFile, outputDir):
-    time.sleep(0.01);
+    time.sleep(0.002);
     # We set `check=False` here to tolerate when the Slice compiler encounters errors. Otherwise one error kills this whole script.
     parentDir = os.path.dirname(sliceFile);
     result = subprocess.run([compiler, "--output-dir", outputDir, "-I./slice", "-I" + parentDir, "-I" + os.path.dirname(parentDir), sliceFile], check=False, env=ENVIRONMENT, stdout=OUTPUT_TO);
