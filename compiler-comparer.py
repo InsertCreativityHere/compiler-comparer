@@ -401,11 +401,6 @@ for branch in branches:
         with open(os.path.join(outputDirBase, "BUILD_FAILURE"), "w") as errorFile:
             errorFile.write(traceback.format_exc());
 
-    # Grab the commit message of this branch's latest commit; we want to include this information in our scratch repo.
-    result = subprocess.run(["git", "log", "--format=%B", "-n", "1", branchID], check=True, capture_output=True);
-    branchMessage = result.stdout.decode("utf-8").strip();
-    if DEBUGGING: print("    >> RESULT 'retrieved commit message of '" + str(branchMessage) + "'");
-
     # Now that we've generated all the code we care about into this '_slice_gen_*' folder,
     # We rip out the core '.git' folder from our scratch repo, and move into this '_slice_gen_*' folder.
     moveDir(os.path.join(compareDir, ".git"), outputDirBase);
@@ -415,6 +410,13 @@ for branch in branches:
     result = subprocess.run(["git", "-C", outputDirBase, "status", "-s"], check=True, capture_output=True);
     if DEBUGGING: print("    >> RESULT 'git ... status -s' = '" + str(result) + "'");
     if result.stdout.decode("utf-8").strip() != "":
+        # Grab various information from whichever commit we just build everything off of.
+        # We want to include this information (message, date, author) in the commits we generate in the scratch repo.
+        result = subprocess.run(["git", "log", "--format=%B", "-n", "1", branchID], check=True, capture_output=True);
+        branchMessage = result.stdout.decode("utf-8").strip();
+        if DEBUGGING: print("    >> RESULT 'retrieved commit message of '" + str(branchMessage) + "'");
+        # TODO get more information from here.
+
         # We commit the contents of this '_slice_gen_*' folder, so that the '.git' will capture it.
         result = subprocess.run(["git", "-C", outputDirBase, "add", "--all"], check=True, env=ENVIRONMENT, stdout=OUTPUT_TO);
         if DEBUGGING: print("    >> RESULT 'git ... add --all' = '" + str(result) + "'");
