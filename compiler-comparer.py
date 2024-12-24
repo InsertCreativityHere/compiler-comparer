@@ -361,7 +361,8 @@ for branch in branches:
 
     # Create a directory to store the generated code in after we finish building the compilers in the next step.
     outputDirBase = os.path.join(REPO_ROOT, "_slice_gen_" + branchName + "_" + branchID);
-    Path(outputDirBase).mkdir(parents=True, exist_ok=True);
+    Path(outputDirBase).mkdir();
+
     # And also go ahead and resolve which Slice files we should compile from this branch.
     resolvedSliceFiles = resolveSliceFiles(sliceFiles);
 
