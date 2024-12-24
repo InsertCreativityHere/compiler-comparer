@@ -35,6 +35,19 @@ if DEBUGGING: print("    >> IS_WINDOWS = '" + str(IS_WINDOWS) + "'");
 
 
 
+def runCommand(args, desc, checked, capture):
+    if capture:
+        result = subprocess.run(args, check=checked, env=ENVIRONMENT, capture_output=True);
+    else:
+        result = subprocess.run(args, check=checked, env=ENVIRONMENT, stdout=OUTPUT_TO);
+    if DEBUGGING:
+        if desc == None: desc = " ".join(args);
+        print("    >> RESULT '" + desc + "' = '" + str(result) + "'");
+    return None if result.stdout == None else result.stdout.decode("utf-8").strip();
+
+
+
+
 
 
 # Before anything else, make sure the user is VERY AWARE that this will clean and reset their repo...
@@ -142,18 +155,14 @@ if DEBUGGING:
 #### ============================================ ####
 
 # Find the root of the repository. This is also a test that git is usable in the current directory.
-result = subprocess.run(["git", "rev-parse", "--show-toplevel"], check=True, capture_output=True);
-if DEBUGGING: print("    >> RESULT 'git rev-parse --show-toplevel' = '" + str(result) + "'");
-REPO_ROOT = result.stdout.decode("utf-8").strip();
+REPO_ROOT = runCommand(["git", "rev-parse", "--show-toplevel"], None, checked=True, capture=True);
 if DEBUGGING: print("    >> REPO_ROOT = '" + str(REPO_ROOT) + "'\n");
 if not os.path.isdir(REPO_ROOT):
     print("ERROR: Expected repository root to be at '" + REPO_ROOT + "', but no such directory exists!");
     exit(11);
 
 # Store which branch the repository is currently on, so we can switch back to it when we're done running.
-result = subprocess.run(["git", "rev-parse", "--abbrev-ref", "HEAD"], check=True, capture_output=True);
-if DEBUGGING: print("    >> RESULT 'git rev-parse --abbrev-ref HEAD' = '" + str(result) + "'");
-ORIGINAL_BRANCH = result.stdout.decode("utf-8").strip();
+ORIGINAL_BRANCH = runCommand(["git", "rev-parse", "--abbrev-ref", "HEAD"], None, checked=True, capture=True);
 
 # If no compilers were specified, we want to run _all_ the compilers.
 if len(compilers) == 0:
@@ -179,9 +188,8 @@ if backTrack != None:
     backCommits = [("HEAD~" + str(i)) for i in range(backTrack + 1)];
     backCommits.reverse();
     for commit in backCommits:
-        result = subprocess.run(["git", "rev-parse", commit], check=True, capture_output=True);
-        if DEBUGGING: print("    >> RESULT 'git rev-parse ...' = '" + str(result) + "'");
-        branches.append(result.stdout.decode("utf-8").strip());
+        commitID = runCommand(["git", "rev-parse", commit], "git rev-parse <commit>", checked=True, capture=True);
+        branches.append(commitID);
 
 # If no slice files were provided, we want to recursively get ALL the slice files in the current directory.
 if len(sliceFiles) == 0:
@@ -268,8 +276,7 @@ def git_clean(fullClean):
     time.sleep(0.5);
     try:
         args = ["git", "clean", "-dqfx"] + ([] if fullClean else ["-e", "_slice_compare_"]);
-        result = subprocess.run(args, check=True, env=ENVIRONMENT, stdout=OUTPUT_TO);
-        if DEBUGGING: print("    >> RESULT 'git clean -dqfx ...' = '" + str(result) + "'");
+        runCommand(args, None, checked=True, capture=False);
     except subprocess.CalledProcessError as ex:
         print(ex);
         print("WARNING: failed to 'git clean' repository, continuing anyways...");
@@ -278,8 +285,7 @@ def git_clean(fullClean):
 def git_reset():
     time.sleep(0.5);
     try:
-        result = subprocess.run(["git", "reset", "--hard"], check=True, env=ENVIRONMENT, stdout=OUTPUT_TO);
-        if DEBUGGING: print("    >> RESULT 'git reset --hard' = '" + str(result) + "'");
+        runCommand(["git", "reset", "--hard"], None, checked=True, capture=False);
     except subprocess.CalledProcessError as ex:
         print(ex);
         print("WARNING: failed to 'git reset' repository, continuing anyways...");
@@ -287,8 +293,7 @@ def git_reset():
 
 def git_checkout(branchName):
     time.sleep(0.5);
-    result = subprocess.run(["git", "-c", "advice.detachedHead=false", "checkout", branchName], check=True, env=ENVIRONMENT, stdout=OUTPUT_TO);
-    if DEBUGGING: print("    >> RESULT 'git ... checkout <branchName>' = '" + str(result) + "'");
+    runCommand(["git", "-c", "advice.detachedHead=false", "checkout", branchName], "git ... checkout ...", checked=True, capture=False);
 
     result1 = subprocess.run(["git", "rev-parse", "--abbrev-ref", "HEAD"], check=True, capture_output=True);
     result2 = subprocess.run(["git", "rev-parse", "--short", "HEAD"], check=True, capture_output=True);
@@ -297,40 +302,25 @@ def git_checkout(branchName):
 def build():
     time.sleep(0.2);
     if IS_WINDOWS:
-        msbuild();
+        args = ["msbuild", projPath, "/target:BuildDist", "/p:Configuration=Debug", "/p:Platform=x64", "/p:PythonHome=\"" + pythonPath + "\"", "/m", "/nr:false"];
+        runCommand(args, "msbuild ...", checked=True, capture=False);
     else:
-        make();
-
-def msbuild():
-    result = subprocess.run(["msbuild", projPath, "/target:BuildDist", "/p:Configuration=Debug", "/p:Platform=x64", "/p:PythonHome=\"" + pythonPath + "\"", "/m", "/nr:false"], check=True, env=ENVIRONMENT, stdout=OUTPUT_TO);
-    if DEBUGGING: print("    >> RESULT 'msbuild ...' = '" + str(result) + "'");
-
-def make():
-    args = ["make", "-j", "-C", os.path.dirname(projPath)] + [os.path.basename(c) for c in compilers];
-    result = subprocess.run(args, check=True, env=ENVIRONMENT, stdout=OUTPUT_TO);
-    if DEBUGGING: print("    >> RESULT 'make -j ...' = '" + str(result) + "'");
+        args = ["make", "-j", "-C", os.path.dirname(projPath)] + [os.path.basename(c) for c in compilers];
+        runCommand(args, "make ...", checked=True, capture=False);
 
 def sliceCompile(compiler, sliceFile, outputDir):
     time.sleep(0.002);
-    # We set `check=False` here to tolerate when the Slice compiler encounters errors. Otherwise one error kills this whole script.
     parentDir = os.path.dirname(sliceFile);
-    result = subprocess.run([compiler, "--output-dir", outputDir, "-I./slice", "-I" + parentDir, "-I" + os.path.dirname(parentDir), sliceFile], check=False, env=ENVIRONMENT, stdout=OUTPUT_TO);
-    if DEBUGGING: print("    >> RESULT '" + str(compiler) + " --output-dir <outputPath> -Islice -I<parentPath> <file>' = '" + str(result) + "'");
+    args = [compiler, "--output-dir", outputDir, "-I./slice", "-I" + parentDir, "-I" + os.path.dirname(parentDir), sliceFile];
+    # We set `checked=False` here to tolerate when the Slice compiler encounters errors. Otherwise one error kills this whole script.
+    runCommand(args, os.path.basename(compiler) + " ...", checked=False, capture=False);
 
 def moveDir(sourceDir, destinationDir):
     time.sleep(0.5);
     if IS_WINDOWS:
-        move(sourceDir, destinationDir);
+        runCommand(["move", "/y", sourceDir, destinationDir], "move ...", checked=True, capture=False);
     else:
-        mv(sourceDir, destinationDir);
-
-def move(sourceDir, destinationDir):
-    result = subprocess.run(["move", "/y", sourceDir, destinationDir], check=True, env=ENVIRONMENT, stdout=OUTPUT_TO);
-    if DEBUGGING: print("    >> RESULT 'move /y ...' = '" + str(result) + "'");
-
-def mv(sourceDir, destinationDir):
-    result = subprocess.run(["mv", "-f", sourceDir, destinationDir], check=True, env=ENVIRONMENT, stdout=OUTPUT_TO);
-    if DEBUGGING: print("    >> RESULT 'mv -f ...' = '" + str(result) + "'");
+        runCommand(["mv", "-f", sourceDir, destinationDir], "mv ...", checked=True, capture=False);
 
 #### ================================= ####
 #### Let's Actually Do Some Stuff Now! ####
@@ -357,12 +347,9 @@ git_reset();
 Path(compareDir).mkdir();
 
 # Initialize a git repository in that directory. We utilize git to do the diffing for us!
-result = subprocess.run(["git", "-c", "init.defaultBranch=master", "-C", compareDir, "init"], check=True, env=ENVIRONMENT, stdout=OUTPUT_TO);
-if DEBUGGING: print("    >> RESULT 'git -c init.defaultBranch=master ... init' = '" + str(result) + "'");
-result = subprocess.run(["git", "-C", compareDir, "config", "user.name", "temp"], check=True, env=ENVIRONMENT, stdout=OUTPUT_TO);
-if DEBUGGING: print("    >> RESULT 'git ... config user.name temp' = '" + str(result) + "'");
-result = subprocess.run(["git", "-C", compareDir, "config", "user.email", "temp@zeroc.com"], check=True, env=ENVIRONMENT, stdout=OUTPUT_TO);
-if DEBUGGING: print("    >> RESULT 'git ... config user.email temp@zeroc.com' = '" + str(result) + "'");
+runCommand(["git", "-C", compareDir, "-c", "init.defaultBranch=master", "init"], "git -C ... init", checked=True, capture=False);
+runCommand(["git", "-C", compareDir, "config", "user.name", "temp"], "TEMP DELETE", checked=True, capture=False);
+runCommand(["git", "-C", compareDir, "config", "user.email", "temp@zeroc.com"], "TEMP DELETE", checked=True, capture=False);
 
 # Then, we want to compile the slice Files against each provided branch, and store them in this scratch git repository.
 for branch in branches:
@@ -407,9 +394,8 @@ for branch in branches:
 
     # Check if there's been any changes to the generated code. If there have been, we want to add and commit them.
     # We have this check because if there are no changes, `git commit` 'fails' with a non-zero exit code.
-    result = subprocess.run(["git", "-C", outputDirBase, "status", "-s"], check=True, capture_output=True);
-    if DEBUGGING: print("    >> RESULT 'git ... status -s' = '" + str(result) + "'");
-    if result.stdout.decode("utf-8").strip() != "":
+    result = runCommand(["git", "-C", outputDirBase, "status", "-s"], "git -C ... status -s", checked=True, capture=True);
+    if result != "":
         # Grab various information from whichever commit we just build everything off of.
         # We want to include this information (message, date, author) in the commits we generate in the scratch repo.
         result = subprocess.run(["git", "log", "--format=%B", "-n", "1", branchID], check=True, capture_output=True);
@@ -418,8 +404,7 @@ for branch in branches:
         # TODO get more information from here.
 
         # We commit the contents of this '_slice_gen_*' folder, so that the '.git' will capture it.
-        result = subprocess.run(["git", "-C", outputDirBase, "add", "--all"], check=True, env=ENVIRONMENT, stdout=OUTPUT_TO);
-        if DEBUGGING: print("    >> RESULT 'git ... add --all' = '" + str(result) + "'");
+        runCommand(["git", "-C", outputDirBase, "add", "--all"], "git -C ... add --all", checked=True, capture=False);
         message = branchName + "@" + branchID + ": " + branchMessage;
         result = subprocess.run(["git", "-C", outputDirBase, "commit", "-m", message], check=True, env=ENVIRONMENT, stdout=OUTPUT_TO);
         if DEBUGGING: print("    >> RESULT 'git ... commit -m ...' = '" + str(result) + "'");
@@ -435,8 +420,7 @@ for branch in branches:
 
 # Finally, we do a hard reset on our now fully completed scratch git repository,
 # so that it doesn't look like all it's files were deleted when you interact with it.
-result = subprocess.run(["git", "-C", compareDir, "reset", "--hard"], check=True, env=ENVIRONMENT, stdout=OUTPUT_TO);
-if DEBUGGING: print("    >> RESULT 'git ... reset --hard' = '" + str(result) + "'");
+runCommand(["git", "-C", compareDir, "reset", "--hard"], "git -C ... reset --hard", checked=True, capture=False);
 
 print();
 print("The results of this script have been stored in the '" + compareDir + "' directory.");
