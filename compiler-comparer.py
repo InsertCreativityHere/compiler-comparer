@@ -295,10 +295,6 @@ def git_checkout(branchName):
     time.sleep(0.5);
     runCommand(["git", "-c", "advice.detachedHead=false", "checkout", branchName], "git ... checkout ...", checked=True, capture=False);
 
-    result1 = subprocess.run(["git", "rev-parse", "--abbrev-ref", "HEAD"], check=True, capture_output=True);
-    result2 = subprocess.run(["git", "rev-parse", "--short", "HEAD"], check=True, capture_output=True);
-    return [result1.stdout.decode("utf-8").strip(), result2.stdout.decode("utf-8").strip()];
-
 def build():
     time.sleep(0.2);
     if IS_WINDOWS:
@@ -348,16 +344,20 @@ Path(compareDir).mkdir();
 
 # Initialize a git repository in that directory. We utilize git to do the diffing for us!
 runCommand(["git", "-C", compareDir, "-c", "init.defaultBranch=master", "init"], "git -C ... init", checked=True, capture=False);
-runCommand(["git", "-C", compareDir, "config", "user.name", "temp"], "TEMP DELETE", checked=True, capture=False);
-runCommand(["git", "-C", compareDir, "config", "user.email", "temp@zeroc.com"], "TEMP DELETE", checked=True, capture=False);
+runCommand(["git", "-C", compareDir, "config", "user.name", "temp"], "git -C ... config user.name ...", checked=True, capture=False);
+runCommand(["git", "-C", compareDir, "config", "user.email", "temp@zeroc.com"], "git -C ... config user.email ...", checked=True, capture=False);
 
 # Then, we want to compile the slice Files against each provided branch, and store them in this scratch git repository.
 for branch in branches:
     print();
 
     # Checkout the branch, and perform a clean build.
-    branchName, branchID = git_checkout(branch);
+    git_checkout(branch);
     git_clean(False);
+
+    # Get the current branch's name and the ID of the commit it's pointing at.
+    branchName = runCommand(["git", "rev-parse", "--abbrev-ref", "HEAD"], None, checked=True, capture=True);
+    branchID = runCommand(["git", "rev-parse", "--short", "HEAD"], None, checked=True, capture=True);
 
     # Create a directory to store the generated code in after we finish building the compilers in the next step.
     outputDirBase = os.path.join(REPO_ROOT, "_slice_gen_" + branchName + "_" + branchID);
@@ -396,18 +396,20 @@ for branch in branches:
     # We have this check because if there are no changes, `git commit` 'fails' with a non-zero exit code.
     result = runCommand(["git", "-C", outputDirBase, "status", "-s"], "git -C ... status -s", checked=True, capture=True);
     if result != "":
-        # Grab various information from whichever commit we just build everything off of.
+        # Grab various information from whichever commit we just built everything off of.
         # We want to include this information (message, date, author) in the commits we generate in the scratch repo.
-        result = subprocess.run(["git", "log", "--format=%B", "-n", "1", branchID], check=True, capture_output=True);
-        branchMessage = result.stdout.decode("utf-8").strip();
-        if DEBUGGING: print("    >> RESULT 'retrieved commit message of '" + str(branchMessage) + "'");
-        # TODO get more information from here.
+        commitMessage = runCommand(["git", "log", "--format=%B", "-n", "1"], None, checked=True, capture=True);
+        if DEBUGGING: print("    >> RESULT 'retrieved commit message of '" + commitMessage + "'");
+        commitAuthor = runCommand(["git", "log", "--format=%an <%ae>", "-n", "1"], None, checked=True, capture=True);
+        if DEBUGGING: print("    >> RESULT 'retrieved commit author of '" + commitAuthor + "'");
+        commitDate = runCommand(["git", "log", "--format=%ad", "-n", "1"], None, checked=True, capture=True);
+        if DEBUGGING: print("    >> RESULT 'retrieved commit timestamp of '" + commitDate + "'");
+
+        message = branchName + "@" + branchID + ": \n" + commitMessage;
 
         # We commit the contents of this '_slice_gen_*' folder, so that the '.git' will capture it.
         runCommand(["git", "-C", outputDirBase, "add", "--all"], "git -C ... add --all", checked=True, capture=False);
-        message = branchName + "@" + branchID + ": " + branchMessage;
-        result = subprocess.run(["git", "-C", outputDirBase, "commit", "-m", message], check=True, env=ENVIRONMENT, stdout=OUTPUT_TO);
-        if DEBUGGING: print("    >> RESULT 'git ... commit -m ...' = '" + str(result) + "'");
+        runCommand(["git", "-C", outputDirBase, "commit", "--author=" + commitAuthor, "--date=" + commitDate, "-m", message], "git -C ... commit ...", checked=True, capture=False);
 
     # Now that we've captured any changes in the generated code, move the '.git' back to where it belongs,
     moveDir(os.path.join(outputDirBase, ".git"), compareDir);
