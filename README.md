@@ -71,7 +71,7 @@ Options:
                    For example: `--back-track=12` tells the script to check the last 12 commits.
 
                    If `--back-track` is specified, it is invalid to also provide specific branches
-                   with `--branch`. Only of these options may be used at a time.
+                   with `--branch`. Only one of these options may be used at a time.
 
 
 --proj-path        Specifies the project file path that should be used to build the compilers.
