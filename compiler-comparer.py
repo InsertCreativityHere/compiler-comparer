@@ -6,6 +6,7 @@ from pathlib import Path;
 import subprocess;
 import sys;
 import time;
+import traceback;
 
 
 
@@ -368,31 +369,37 @@ for branch in branches:
     print();
 
     # Checkout the branch, and perform a clean build.
-    if DEBUGGING: print("================================================================================");
     branchName, branchID = git_checkout(branch);
     git_clean(False);
 
-    print("Building '" + branchName + " @ " + branchID + "'...");
-    build();
-    if DEBUGGING: print("================================================================================");
-    print("Build complete!");
-
-    # If the build succeeded, next we want to run the Slice compilers over the Slice files.
-    # So we create a directory to output the generated code into...
+    # Create a directory to store the generated code in after we finish building the compilers in the next step.
     outputDirBase = os.path.join(REPO_ROOT, "_slice_gen_" + branchName + "_" + branchID);
     Path(outputDirBase).mkdir(parents=True, exist_ok=True);
-    # ... and resolve which Slice files we should compile on this branch.
+    # And also go ahead and resolve which Slice files we should compile from this branch.
     resolvedSliceFiles = resolveSliceFiles(sliceFiles);
 
-    # Run all the Slice compilers!
-    for compiler in compilers:
-        print("    Running " + os.path.basename(compiler) + "...");
-        for file in resolvedSliceFiles:
-            outputDir = os.path.join(outputDirBase, os.path.dirname(file));
-            Path(outputDir).mkdir(parents=True, exist_ok=True);
-            sliceCompile(compiler, "./" + file, outputDir);
+    # Build the compilers so we can run them.
+    try:
+        print("Building '" + branchName + " @ " + branchID + "'...");
+        if DEBUGGING: print("================================================================================");
+        build();
+        if DEBUGGING: print("================================================================================");
+        print("Build complete!");
 
-    print("    Storing generated code...");
+        # Run all the Slice compilers!
+        for compiler in compilers:
+            print("    Running " + os.path.basename(compiler) + "...");
+            for file in resolvedSliceFiles:
+                outputDir = os.path.join(outputDirBase, os.path.dirname(file));
+                Path(outputDir).mkdir(parents=True, exist_ok=True);
+                sliceCompile(compiler, "./" + file, outputDir);
+
+        print("    Storing generated code...");
+    except subprocess.CalledProcessError as ex:
+        print("!!!! BUILD FAILURE !!!!")
+        print("Skipping code generation phase and moving to the next branch...")
+        with open(os.path.join(outputDirBase, "BUILD_FAILURE"), "w") as errorFile:
+            errorFile.write(traceback.format_exc());
 
     # Grab the commit message of this branch's latest commit; we want to include this information in our scratch repo.
     result = subprocess.run(["git", "log", "--format=%B", "-n", "1", branchID], check=True, capture_output=True);
