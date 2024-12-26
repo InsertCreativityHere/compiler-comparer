@@ -377,9 +377,11 @@ for branch in branches:
 
         # Run all the Slice compilers!
         for compiler in compilers:
-            print("    Running " + os.path.basename(compiler) + "...");
+            compilerBaseName = os.path.basename(compiler);
+            print("    Running " + compilerBaseName + "...");
+            compilerOutputDir = os.path.join(outputDirBase, compilerBaseName);
             for file in resolvedSliceFiles:
-                outputDir = os.path.join(outputDirBase, os.path.dirname(file));
+                outputDir = os.path.join(compilerOutputDir, os.path.dirname(file));
                 Path(outputDir).mkdir(parents=True, exist_ok=True);
                 sliceCompile(compiler, "./" + file, outputDir);
 
