@@ -407,7 +407,9 @@ for branch in branches:
         commitDate = runCommand(["git", "log", "--format=%ad", "-n", "1"], None, checked=True, capture=True);
         if DEBUGGING: print("    >> RESULT 'retrieved commit timestamp of '" + commitDate + "'");
 
-        message = branchName + "@" + branchID + ": \n" + commitMessage;
+        # Construct a new commit message, which contains the message of the original commit (but with any '#' links sanitized),
+        # and with a little header that says which branch and commit the generated code was built off of, with a link to it.
+        message = "(" + branchName + ":zeroc-ice/ice@" + branchID + ") " + commitMessage.replace("#", "zeroc-ice/ice#");
 
         # We commit the contents of this '_slice_gen_*' folder, so that the '.git' will capture it.
         ENVIRONMENT["GIT_COMMITTER_DATE"] = commitDate;
