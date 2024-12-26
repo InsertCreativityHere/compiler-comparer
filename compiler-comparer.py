@@ -429,7 +429,8 @@ if __name__ == "__main__":
                 print("    Running " + compilerBaseName + "...");
                 compilerOutputDir = os.path.join(outputDirBase, compilerBaseName);
 
-                if runInParallel:
+                # Ironically, we cannot run 'slice2py' in parallel, since multiple files read/write to a single "__init__.py" file.
+                if runInParallel and not compilerBaseName == "slice2py":
                     futures = [
                         EXECUTOR.submit(sliceCompile, compiler, "./" + file, os.path.join(compilerOutputDir, os.path.dirname(file)))
                         for file in resolvedSliceFiles
