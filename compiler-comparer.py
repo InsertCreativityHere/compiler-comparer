@@ -410,8 +410,12 @@ for branch in branches:
         message = branchName + "@" + branchID + ": \n" + commitMessage;
 
         # We commit the contents of this '_slice_gen_*' folder, so that the '.git' will capture it.
+        ENVIRONMENT["GIT_COMMITTER_DATE"] = commitDate;
+        ENVIRONMENT["GIT_AUTHOR_DATE"] = commitDate;
         runCommand(["git", "-C", outputDirBase, "add", "--all"], "git -C ... add --all", checked=True, capture=False);
-        runCommand(["git", "-C", outputDirBase, "commit", "--author=" + commitAuthor, "--date=" + commitDate, "-m", message], "git -C ... commit ...", checked=True, capture=False);
+        runCommand(["git", "-C", outputDirBase, "commit", "--author=" + commitAuthor, "-m", message], "git -C ... commit ...", checked=True, capture=False);
+        del ENVIRONMENT["GIT_COMMITTER_DATE"];
+        del ENVIRONMENT["GIT_AUTHOR_DATE"];
 
     # Now that we've captured any changes in the generated code, move the '.git' back to where it belongs,
     moveDir(os.path.join(outputDirBase, ".git"), compareDir);
