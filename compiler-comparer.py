@@ -156,7 +156,7 @@ if DEBUGGING:
 
 # Find the root of the repository. This is also a test that git is usable in the current directory.
 REPO_ROOT = runCommand(["git", "rev-parse", "--show-toplevel"], None, checked=True, capture=True);
-if DEBUGGING: print("    >> REPO_ROOT = '" + str(REPO_ROOT) + "'\n");
+if DEBUGGING: print("    >> REPO_ROOT = '" + str(REPO_ROOT) + "'");
 if not os.path.isdir(REPO_ROOT):
     print("ERROR: Expected repository root to be at '" + REPO_ROOT + "', but no such directory exists!");
     exit(11);
@@ -262,7 +262,7 @@ def resolveSliceFiles(sliceFiles):
         print("    >> resolvedSliceFiles = '" + str(resolvedSliceFiles) + "'");
         print();
 
-    print("A total of " + str(len(resolvedSliceFiles)) + " Slice files will be compiled.");
+    print("    A total of " + str(len(resolvedSliceFiles)) + " Slice files will be compiled.");
     return resolvedSliceFiles;
 
 
@@ -350,6 +350,7 @@ runCommand(["git", "-C", compareDir, "config", "user.email", "temp@zeroc.com"], 
 # Then, we want to compile the slice Files against each provided branch, and store them in this scratch git repository.
 for branch in branches:
     print();
+    print("================================================================================");
 
     # Checkout the branch, and perform a clean build.
     git_checkout(branch);
@@ -369,9 +370,9 @@ for branch in branches:
     # Build the compilers so we can run them.
     try:
         print("Building '" + branchName + " @ " + branchID + "'...");
-        if DEBUGGING: print("================================================================================");
+        if DEBUGGING: print("--------------------------------------------------------------------------------");
         build();
-        if DEBUGGING: print("================================================================================");
+        if DEBUGGING: print("--------------------------------------------------------------------------------");
         print("Build complete!");
 
         # Run all the Slice compilers!
@@ -420,6 +421,9 @@ for branch in branches:
     if backTrack != None:
         print("Backtrack iterations remaining: '" + str(backTrack) + "'");
         backTrack -= 1;
+
+    print("================================================================================");
+    print();
 
 # Finally, we do a hard reset on our now fully completed scratch git repository,
 # so that it doesn't look like all it's files were deleted when you interact with it.
