@@ -32,6 +32,10 @@ if DEBUGGING: print("    >> CURRENT_DIR = '" + str(CURRENT_DIR) + "'");
 IS_WINDOWS = os.name == "nt";
 if DEBUGGING: print("    >> IS_WINDOWS = '" + str(IS_WINDOWS) + "'");
 
+# Every `REPACK_COUNTER_MAX` cycles, we want to repack and garbage collect in our scratch repository.
+# When using back-track, it's important to do this periodically, or otherwise the size of the repo
+# grows out of control and slows stuff down. (This only has an effect during back-tracking).
+REPACK_COUNTER_MAX = 100;
 
 
 
@@ -295,6 +299,16 @@ def git_checkout(branchName):
     time.sleep(0.5);
     runCommand(["git", "-c", "advice.detachedHead=false", "checkout", branchName], "git ... checkout ...", checked=True, capture=False);
 
+def git_repack(directory):
+    print();
+    print("repacking repository and running garbage collection pass...");
+    print();
+
+    time.sleep(0.5);
+    runCommand(["git", "-C", directory, "repack"], "git -C ... repack", checked=True, capture=False);
+    time.sleep(0.5);
+    runCommand(["git", "-C", directory, "gc"], "git -C ... gc", checked=True, capture=False);
+
 def build():
     time.sleep(0.2);
     if IS_WINDOWS:
@@ -426,16 +440,21 @@ for branch in branches:
 
     # We're done with this branch!
     print("Finished!");
+    print("================================================================================");
     if backTrack != None:
         print("Backtrack iterations remaining: '" + str(backTrack) + "'");
         backTrack -= 1;
 
-    print("================================================================================");
-    print();
+        # Check if enough cycles have passed yet to warrant a repack of the scratch repository.
+        # The `+2` is because we don't want to repack at `backTrack==0`, since we already repack at the end of the script.
+        if ((backTrack+2) % REPACK_COUNTER_MAX == 0):
+            git_repack(compareDir);
 
 # Finally, we do a hard reset on our now fully completed scratch git repository,
 # so that it doesn't look like all it's files were deleted when you interact with it.
 runCommand(["git", "-C", compareDir, "reset", "--hard"], "git -C ... reset --hard", checked=True, capture=False);
+# And do a final packing/garbage collection pass to keep file sizes down.
+git_repack(compareDir);
 
 print();
 print("The results of this script have been stored in the '" + compareDir + "' directory.");
