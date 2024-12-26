@@ -10,10 +10,8 @@ import time;
 import traceback;
 
 
-
 # Setting this to true will cause the script to print lots of letters to the terminal while it's running.
 DEBUGGING = False;
-
 
 
 # This is passed into many of the subprocess commands we execute.
@@ -40,6 +38,11 @@ REPACK_COUNTER_MAX = 100;
 
 
 
+
+
+
+
+
 def runCommand(args, desc, checked, capture):
     if capture:
         result = subprocess.run(args, check=checked, env=ENVIRONMENT, capture_output=True);
@@ -49,6 +52,13 @@ def runCommand(args, desc, checked, capture):
         if desc == None: desc = " ".join(args);
         print("    >> RESULT '" + desc + "' = '" + str(result) + "'");
     return None if result.stdout == None else result.stdout.decode("utf-8").strip();
+
+
+
+def printHelp():
+    print("TODO");
+
+
 
 
 
@@ -67,8 +77,73 @@ print();
 
 
 
-def printHelp():
-    print("TODO");
+
+
+
+
+#### ============================================= ####
+#### Define Functions for the Actual Runtime Logic ####
+#### ============================================= ####
+
+def git_clean(fullClean):
+    time.sleep(0.1);
+    try:
+        args = ["git", "clean", "-dqfx"] + ([] if fullClean else ["-e", "_slice_compare_"]);
+        runCommand(args, None, checked=True, capture=False);
+    except subprocess.CalledProcessError as ex:
+        print(ex);
+        print("WARNING: failed to 'git clean' repository, continuing anyways...");
+        print();
+
+def git_reset():
+    time.sleep(0.1);
+    try:
+        runCommand(["git", "reset", "--hard"], None, checked=True, capture=False);
+    except subprocess.CalledProcessError as ex:
+        print(ex);
+        print("WARNING: failed to 'git reset' repository, continuing anyways...");
+        print();
+
+def git_checkout(branchName):
+    time.sleep(0.1);
+    runCommand(["git", "-c", "advice.detachedHead=false", "checkout", branchName], "git ... checkout ...", checked=True, capture=False);
+
+def git_repack(directory):
+    print();
+    print("repacking repository and running garbage collection pass...");
+    print();
+
+    time.sleep(0.1);
+    runCommand(["git", "-C", directory, "repack"], "git -C ... repack", checked=True, capture=False);
+    time.sleep(0.1);
+    runCommand(["git", "-C", directory, "gc"], "git -C ... gc", checked=True, capture=False);
+    print();
+
+def build(compilers, projPath, pythonPath):
+    time.sleep(0.1);
+    if IS_WINDOWS:
+        args = ["msbuild", projPath, "/target:BuildDist", "/p:Configuration=Debug", "/p:Platform=x64", "/p:PythonHome=\"" + pythonPath + "\"", "/m", "/nr:false"];
+        runCommand(args, "msbuild ...", checked=True, capture=False);
+    else:
+        args = ["make", "-j", "-C", os.path.dirname(projPath)] + [os.path.basename(c) for c in compilers];
+        runCommand(args, "make ...", checked=True, capture=False);
+
+def sliceCompile(compiler, sliceFile, outputDir):
+    parentDir = os.path.dirname(sliceFile);
+    args = [compiler, "--output-dir", outputDir, "-I./slice", "-I" + parentDir, "-I" + os.path.dirname(parentDir), sliceFile];
+
+    # Make sure the output directory exists. The Slice compilers cannot create directories that don't already exist.
+    Path(outputDir).mkdir(parents=True, exist_ok=True);
+
+    # We set `checked=False` here to tolerate when the Slice compiler encounters errors. Otherwise one error kills this whole script.
+    runCommand(args, os.path.basename(compiler) + " ...", checked=False, capture=False);
+
+def moveDir(sourceDir, destinationDir):
+    time.sleep(0.1);
+    if IS_WINDOWS:
+        runCommand(["move", "/y", sourceDir, destinationDir], "move ...", checked=True, capture=False);
+    else:
+        runCommand(["mv", "-f", sourceDir, destinationDir], "mv ...", checked=True, capture=False);
 
 
 
@@ -290,70 +365,6 @@ def resolveSliceFiles(sliceFiles):
 
 
 
-
-#### ============================================= ####
-#### Define Functions for the Actual Runtime Logic ####
-#### ============================================= ####
-
-def git_clean(fullClean):
-    time.sleep(0.1);
-    try:
-        args = ["git", "clean", "-dqfx"] + ([] if fullClean else ["-e", "_slice_compare_"]);
-        runCommand(args, None, checked=True, capture=False);
-    except subprocess.CalledProcessError as ex:
-        print(ex);
-        print("WARNING: failed to 'git clean' repository, continuing anyways...");
-        print();
-
-def git_reset():
-    time.sleep(0.1);
-    try:
-        runCommand(["git", "reset", "--hard"], None, checked=True, capture=False);
-    except subprocess.CalledProcessError as ex:
-        print(ex);
-        print("WARNING: failed to 'git reset' repository, continuing anyways...");
-        print();
-
-def git_checkout(branchName):
-    time.sleep(0.1);
-    runCommand(["git", "-c", "advice.detachedHead=false", "checkout", branchName], "git ... checkout ...", checked=True, capture=False);
-
-def git_repack(directory):
-    print();
-    print("repacking repository and running garbage collection pass...");
-    print();
-
-    time.sleep(0.1);
-    runCommand(["git", "-C", directory, "repack"], "git -C ... repack", checked=True, capture=False);
-    time.sleep(0.1);
-    runCommand(["git", "-C", directory, "gc"], "git -C ... gc", checked=True, capture=False);
-    print();
-
-def build(compilers, projPath, pythonPath):
-    time.sleep(0.1);
-    if IS_WINDOWS:
-        args = ["msbuild", projPath, "/target:BuildDist", "/p:Configuration=Debug", "/p:Platform=x64", "/p:PythonHome=\"" + pythonPath + "\"", "/m", "/nr:false"];
-        runCommand(args, "msbuild ...", checked=True, capture=False);
-    else:
-        args = ["make", "-j", "-C", os.path.dirname(projPath)] + [os.path.basename(c) for c in compilers];
-        runCommand(args, "make ...", checked=True, capture=False);
-
-def sliceCompile(compiler, sliceFile, outputDir):
-    parentDir = os.path.dirname(sliceFile);
-    args = [compiler, "--output-dir", outputDir, "-I./slice", "-I" + parentDir, "-I" + os.path.dirname(parentDir), sliceFile];
-
-    # Make sure the output directory exists. The Slice compilers cannot create directories that don't already exist.
-    Path(outputDir).mkdir(parents=True, exist_ok=True);
-
-    # We set `checked=False` here to tolerate when the Slice compiler encounters errors. Otherwise one error kills this whole script.
-    runCommand(args, os.path.basename(compiler) + " ...", checked=False, capture=False);
-
-def moveDir(sourceDir, destinationDir):
-    time.sleep(0.1);
-    if IS_WINDOWS:
-        runCommand(["move", "/y", sourceDir, destinationDir], "move ...", checked=True, capture=False);
-    else:
-        runCommand(["mv", "-f", sourceDir, destinationDir], "mv ...", checked=True, capture=False);
 
 #### ================================= ####
 #### Let's Actually Do Some Stuff Now! ####
