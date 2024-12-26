@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+import concurrent.futures;
 import glob;
 import os;
 from pathlib import Path;
@@ -84,6 +85,7 @@ sliceFiles = [];
 projPath = "";
 compilersPath = "";
 pythonPath = "";
+runInParallel = False;
 
 # Define all the command-line switches for specifying parameters.
 SHORT_COMPILER = "-c=";
@@ -94,6 +96,7 @@ BACK_TRACK = "--back-track=";
 PROJ_PATH = "--proj-path=";
 COMPILERS_PATH = "--compilers-path=";
 PYTHON_PATH = "--python-path=";
+PARALLEL = "--parallel";
 
 # Parse any command line arguments.
 if DEBUGGING: print("    >> Provided arguments: " + str(sys.argv[1:]));
@@ -122,6 +125,9 @@ for index, arg in enumerate(sys.argv[1:]):
     elif arg.startswith(PYTHON_PATH):
         pythonPath = arg[len(PYTHON_PATH):];
         if DEBUGGING: print("    >> Parsed '" + pythonPath + "' from '" + PYTHON_PATH + "'");
+    elif arg == PARALLEL:
+        runInParallel = True;
+        if DEBUGGING: print("    >> Parsed '" + PARALLEL + "'");
     elif arg == "--help":
         printHelp();
         if DEBUGGING: print("    >> Emitted help message");
@@ -398,9 +404,17 @@ for branch in branches:
             compilerBaseName = os.path.basename(compiler);
             print("    Running " + compilerBaseName + "...");
             compilerOutputDir = os.path.join(outputDirBase, compilerBaseName);
-            for file in resolvedSliceFiles:
-                outputDir = os.path.join(compilerOutputDir, os.path.dirname(file));
-                sliceCompile(compiler, "./" + file, outputDir);
+
+            if runInParallel:
+                futures = [
+                    EXECUTOR.submit(sliceCompile, compiler, "./" + file, os.path.join(compilerOutputDir, os.path.dirname(file)))
+                    for file in resolvedSliceFiles
+                ];
+                [future.result() for future in futures];
+            else:
+                for file in resolvedSliceFiles:
+                    outputDir = os.path.join(compilerOutputDir, os.path.dirname(file));
+                    sliceCompile(compiler, "./" + file, outputDir);
 
         print("    Storing generated code...");
     except subprocess.CalledProcessError as ex:
