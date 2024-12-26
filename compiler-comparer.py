@@ -171,6 +171,10 @@ if not os.path.isdir(REPO_ROOT):
     print("ERROR: Expected repository root to be at '" + REPO_ROOT + "', but no such directory exists!");
     exit(11);
 
+# If we're going to be running the Slice compiler in parallel, we allocate a process pool to use for that.
+if runInParallel:
+    EXECUTOR = concurrent.futures.ProcessPoolExecutor();
+
 # Store which branch the repository is currently on, so we can switch back to it when we're done running.
 ORIGINAL_BRANCH = runCommand(["git", "rev-parse", "--abbrev-ref", "HEAD"], None, checked=True, capture=True);
 
@@ -271,6 +275,15 @@ def resolveSliceFiles(sliceFiles):
         print();
         print("    >> resolvedSliceFiles = '" + str(resolvedSliceFiles) + "'");
         print();
+
+    # TODO: delete this and add negative file searching or something!
+    def removeStuff(file):
+        if file.startswith("cpp/test/Slice"):
+            return False;
+        if file.startswith("java/test/Ice") or file.startswith("java-compat/test/Ice"):
+            return False;
+        return True;
+    resolvedSliceFiles = list(filter(removeStuff, resolvedSliceFiles));
 
     print("    A total of " + str(len(resolvedSliceFiles)) + " Slice files will be compiled.");
     return resolvedSliceFiles;
