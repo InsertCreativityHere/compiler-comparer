@@ -277,7 +277,7 @@ def resolveSliceFiles(sliceFiles):
 #### ============================================= ####
 
 def git_clean(fullClean):
-    time.sleep(0.5);
+    time.sleep(0.1);
     try:
         args = ["git", "clean", "-dqfx"] + ([] if fullClean else ["-e", "_slice_compare_"]);
         runCommand(args, None, checked=True, capture=False);
@@ -287,7 +287,7 @@ def git_clean(fullClean):
         print();
 
 def git_reset():
-    time.sleep(0.5);
+    time.sleep(0.1);
     try:
         runCommand(["git", "reset", "--hard"], None, checked=True, capture=False);
     except subprocess.CalledProcessError as ex:
@@ -296,7 +296,7 @@ def git_reset():
         print();
 
 def git_checkout(branchName):
-    time.sleep(0.5);
+    time.sleep(0.1);
     runCommand(["git", "-c", "advice.detachedHead=false", "checkout", branchName], "git ... checkout ...", checked=True, capture=False);
 
 def git_repack(directory):
@@ -304,13 +304,14 @@ def git_repack(directory):
     print("repacking repository and running garbage collection pass...");
     print();
 
-    time.sleep(0.5);
+    time.sleep(0.1);
     runCommand(["git", "-C", directory, "repack"], "git -C ... repack", checked=True, capture=False);
-    time.sleep(0.5);
+    time.sleep(0.1);
     runCommand(["git", "-C", directory, "gc"], "git -C ... gc", checked=True, capture=False);
+    print();
 
 def build():
-    time.sleep(0.2);
+    time.sleep(0.1);
     if IS_WINDOWS:
         args = ["msbuild", projPath, "/target:BuildDist", "/p:Configuration=Debug", "/p:Platform=x64", "/p:PythonHome=\"" + pythonPath + "\"", "/m", "/nr:false"];
         runCommand(args, "msbuild ...", checked=True, capture=False);
@@ -319,14 +320,14 @@ def build():
         runCommand(args, "make ...", checked=True, capture=False);
 
 def sliceCompile(compiler, sliceFile, outputDir):
-    time.sleep(0.002);
+    time.sleep(0.001);
     parentDir = os.path.dirname(sliceFile);
     args = [compiler, "--output-dir", outputDir, "-I./slice", "-I" + parentDir, "-I" + os.path.dirname(parentDir), sliceFile];
     # We set `checked=False` here to tolerate when the Slice compiler encounters errors. Otherwise one error kills this whole script.
     runCommand(args, os.path.basename(compiler) + " ...", checked=False, capture=False);
 
 def moveDir(sourceDir, destinationDir):
-    time.sleep(0.5);
+    time.sleep(0.1);
     if IS_WINDOWS:
         runCommand(["move", "/y", sourceDir, destinationDir], "move ...", checked=True, capture=False);
     else:
@@ -425,7 +426,7 @@ for branch in branches:
 
         # Construct a new commit message, which contains the message of the original commit (but with any '#' links sanitized),
         # and with a little header that says which branch and commit the generated code was built off of, with a link to it.
-        message = "(" + branchName + ":zeroc-ice/ice@" + branchID + ") " + commitMessage.replace("#", "zeroc-ice/ice#");
+        message = branchName + ":(zeroc-ice/ice@" + branchID + ") " + commitMessage.replace("#", "zeroc-ice/ice#");
 
         # We commit the contents of this '_slice_gen_*' folder, so that the '.git' will capture it.
         ENVIRONMENT["GIT_COMMITTER_DATE"] = commitDate;
