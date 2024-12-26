@@ -320,9 +320,12 @@ def build():
         runCommand(args, "make ...", checked=True, capture=False);
 
 def sliceCompile(compiler, sliceFile, outputDir):
-    time.sleep(0.001);
     parentDir = os.path.dirname(sliceFile);
     args = [compiler, "--output-dir", outputDir, "-I./slice", "-I" + parentDir, "-I" + os.path.dirname(parentDir), sliceFile];
+
+    # Make sure the output directory exists. The Slice compilers cannot create directories that don't already exist.
+    Path(outputDir).mkdir(parents=True, exist_ok=True);
+
     # We set `checked=False` here to tolerate when the Slice compiler encounters errors. Otherwise one error kills this whole script.
     runCommand(args, os.path.basename(compiler) + " ...", checked=False, capture=False);
 
@@ -397,7 +400,6 @@ for branch in branches:
             compilerOutputDir = os.path.join(outputDirBase, compilerBaseName);
             for file in resolvedSliceFiles:
                 outputDir = os.path.join(compilerOutputDir, os.path.dirname(file));
-                Path(outputDir).mkdir(parents=True, exist_ok=True);
                 sliceCompile(compiler, "./" + file, outputDir);
 
         print("    Storing generated code...");
