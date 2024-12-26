@@ -65,22 +65,6 @@ def printHelp():
 
 
 
-# Before anything else, make sure the user is VERY AWARE that this will clean and reset their repo...
-print();
-print("!!! ------------------------------------------------- !!!");
-print("!!! BE WARNED THIS SCRIPT WILL CLEAN THE CURRENT REPO !!!");
-print("!!! DO NOT RUN THIS IF YOU HAVE ANY UNSAVED WORK LEFT !!!");
-print("!!! ------------------------------------------------- !!!");
-input("Press Enter to continue...");
-print();
-
-
-
-
-
-
-
-
 #### ============================================= ####
 #### Define Functions for the Actual Runtime Logic ####
 #### ============================================= ####
@@ -144,6 +128,22 @@ def moveDir(sourceDir, destinationDir):
         runCommand(["move", "/y", sourceDir, destinationDir], "move ...", checked=True, capture=False);
     else:
         runCommand(["mv", "-f", sourceDir, destinationDir], "mv ...", checked=True, capture=False);
+
+
+
+
+
+
+
+
+# Before anything else, make sure the user is VERY AWARE that this will clean and reset their repo...
+print();
+print("!!! ------------------------------------------------- !!!");
+print("!!! BE WARNED THIS SCRIPT WILL CLEAN THE CURRENT REPO !!!");
+print("!!! DO NOT RUN THIS IF YOU HAVE ANY UNSAVED WORK LEFT !!!");
+print("!!! ------------------------------------------------- !!!");
+input("Press Enter to continue...");
+print();
 
 
 
