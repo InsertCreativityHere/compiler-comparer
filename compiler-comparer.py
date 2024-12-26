@@ -329,7 +329,7 @@ def git_repack(directory):
     runCommand(["git", "-C", directory, "gc"], "git -C ... gc", checked=True, capture=False);
     print();
 
-def build():
+def build(compilers, projPath, pythonPath):
     time.sleep(0.1);
     if IS_WINDOWS:
         args = ["msbuild", projPath, "/target:BuildDist", "/p:Configuration=Debug", "/p:Platform=x64", "/p:PythonHome=\"" + pythonPath + "\"", "/m", "/nr:false"];
@@ -408,7 +408,7 @@ for branch in branches:
     try:
         print("Building '" + branchName + " @ " + branchID + "'...");
         if DEBUGGING: print("--------------------------------------------------------------------------------");
-        build();
+        build(compilers, projPath, pythonPath);
         if DEBUGGING: print("--------------------------------------------------------------------------------");
         print("Build complete!");
 
