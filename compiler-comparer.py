@@ -120,7 +120,7 @@ def sliceCompile(compiler, sliceFile, outputDir):
     Path(outputDir).mkdir(parents=True, exist_ok=True);
 
     # We set `checked=False` here to tolerate when the Slice compiler encounters errors. Otherwise one error kills this whole script.
-    runCommand(args, os.path.basename(compiler) + " ...", checked=False, capture=False);
+    return runCommand(args, os.path.basename(compiler) + " ...", checked=False, capture=True);
 
 def moveDir(sourceDir, destinationDir):
     time.sleep(0.1);
@@ -201,7 +201,8 @@ if __name__ == "__main__":
             pythonPath = arg[len(PYTHON_PATH):];
             if DEBUGGING: print("    >> Parsed '" + pythonPath + "' from '" + PYTHON_PATH + "'");
         elif arg == PARALLEL:
-            runInParallel = True;
+            # TODO parallel doesn't work since we sync stdout to a single file now...
+            # runInParallel = True;
             if DEBUGGING: print("    >> Parsed '" + PARALLEL + "'");
         elif arg == "--help":
             printHelp();
@@ -416,6 +417,7 @@ if __name__ == "__main__":
         resolvedSliceFiles = resolveSliceFiles(sliceFiles);
 
         # Build the compilers so we can run them.
+        outputString = "";
         try:
             print("Building '" + branchName + " @ " + branchID + "'...");
             if DEBUGGING: print("--------------------------------------------------------------------------------");
@@ -439,14 +441,18 @@ if __name__ == "__main__":
                 else:
                     for file in resolvedSliceFiles:
                         outputDir = os.path.join(compilerOutputDir, os.path.dirname(file));
-                        sliceCompile(compiler, "./" + file, outputDir);
+                        outputString += sliceCompile(compiler, "./" + file, outputDir).strip();
 
             print("    Storing generated code...");
         except subprocess.CalledProcessError as ex:
             print("!!!! BUILD FAILURE !!!!")
+            print();
             print("Skipping code generation phase and moving to the next branch...")
-            with open(os.path.join(outputDirBase, "BUILD_FAILURE"), "w") as errorFile:
-                errorFile.write(traceback.format_exc());
+            outputString += "\n!!!!!!!!!!!!!!!!!!!!!!!\n!!!! BUILD FAILURE !!!!\n!!!!!!!!!!!!!!!!!!!!!!!\n" + traceback.format_exc().strip();
+
+        # If there were any diagnostics produced during the build/code-gen phases, save them in a file.
+        with open(os.path.join(outputDirBase, "DIAGNOSTICS"), "w") as errorFile:
+            errorFile.write(outputString);
 
         # Now that we've generated all the code we care about into this '_slice_gen_*' folder,
         # We rip out the core '.git' folder from our scratch repo, and move into this '_slice_gen_*' folder.
