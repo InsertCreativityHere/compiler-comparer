@@ -400,125 +400,135 @@ if __name__ == "__main__":
     runCommand(["git", "-C", compareDir, "config", "user.email", "temp@zeroc.com"], "git -C ... config user.email ...", checked=True, capture=False);
 
     # Then, we want to compile the slice Files against each provided branch, and store them in this scratch git repository.
-    for branch in branches:
-        print();
-        print("================================================================================");
-
-        # Checkout the branch, and perform a clean build.
-        git_checkout(branch);
-        git_clean(False);
-
-        # Get the current branch's name and the ID of the commit it's pointing at.
-        branchName = runCommand(["git", "rev-parse", "--abbrev-ref", "HEAD"], None, checked=True, capture=True);
-        branchID = runCommand(["git", "rev-parse", "--short", "HEAD"], None, checked=True, capture=True);
-
-        # Create a directory to store the generated code in after we finish building the compilers in the next step.
-        outputDirBase = os.path.join(REPO_ROOT, "_slice_gen_" + branchName + "_" + branchID);
-        Path(outputDirBase).mkdir();
-
-        # And also go ahead and resolve which Slice files we should compile from this branch.
-        resolvedSliceFiles = resolveSliceFiles(sliceFiles);
-
-        # Build the compilers so we can run them.
-        outputString = "";
-        try:
-            print("Building '" + branchName + " @ " + branchID + "'...");
-            if DEBUGGING: print("--------------------------------------------------------------------------------");
-            build(compilers, projPath, pythonPath);
-            if DEBUGGING: print("--------------------------------------------------------------------------------");
-            print("Build complete!");
-
-            # Run all the Slice compilers!
-            for compiler in compilers:
-                compilerBaseName = os.path.basename(compiler);
-                print("    Running " + compilerBaseName + "...");
-                compilerOutputDir = os.path.join(outputDirBase, compilerBaseName);
-
-                # Ironically, we cannot run 'slice2py' in parallel, since multiple files read/write to a single "__init__.py" file.
-                # We also cannot run java or matlab, since they hit race conditions when generating directories.
-                if runInParallel and compilerBaseName not in ["slice2py", "slice2java", "slice2matlab"]:
-                    futures = [
-                        EXECUTOR.submit(sliceCompile, compiler, "./" + file, os.path.join(compilerOutputDir, os.path.dirname(file)))
-                        for file in resolvedSliceFiles
-                    ];
-                    for future in futures:
-                        result = future.result();
-                        outputString += result;
-                        print(result, end='');
-                else:
-                    for file in resolvedSliceFiles:
-                        outputDir = os.path.join(compilerOutputDir, os.path.dirname(file));
-                        result = sliceCompile(compiler, "./" + file, outputDir);
-                        outputString += result;
-                        print(result, end='');
-
-            print("    Storing generated code...");
-        except subprocess.CalledProcessError as ex:
-            print("!!!! BUILD FAILURE !!!!")
+    try:
+        for branch in branches:
             print();
-            print("Skipping code generation phase and moving to the next branch...")
-            outputString += "\n!!!!!!!!!!!!!!!!!!!!!!!\n!!!! BUILD FAILURE !!!!\n!!!!!!!!!!!!!!!!!!!!!!!\n" + traceback.format_exc().strip();
+            print("================================================================================");
 
-        # If there were any diagnostics produced during the build/code-gen phases, write them into the "DIAGNOSTICS" file.
-        with open(os.path.join(outputDirBase, "DIAGNOSTICS"), "w") as errorFile:
-            errorFile.write(outputString);
+            # Checkout the branch, and perform a clean build.
+            git_checkout(branch);
+            git_clean(False);
 
-        # Now that we've generated all the code we care about into this '_slice_gen_*' folder,
-        # We rip out the core '.git' folder from our scratch repo, and move into this '_slice_gen_*' folder.
-        moveDir(os.path.join(compareDir, ".git"), outputDirBase);
+            # Get the current branch's name and the ID of the commit it's pointing at.
+            branchName = runCommand(["git", "rev-parse", "--abbrev-ref", "HEAD"], None, checked=True, capture=True);
+            branchID = runCommand(["git", "rev-parse", "--short", "HEAD"], None, checked=True, capture=True);
 
-        # Check if there's been any changes to the generated code. If there have been, we want to add and commit them.
-        # We have this check because if there are no changes, `git commit` 'fails' with a non-zero exit code.
-        result = runCommand(["git", "-C", outputDirBase, "status", "-s"], "git -C ... status -s", checked=True, capture=True);
-        if result != "":
-            # Grab various information from whichever commit we just built everything off of.
-            # We want to include this information (message, date, author) in the commits we generate in the scratch repo.
-            commitMessage = runCommand(["git", "log", "--format=%B", "-n", "1"], None, checked=True, capture=True);
-            if DEBUGGING: print("    >> RESULT 'retrieved commit message of '" + commitMessage + "'");
-            commitAuthor = runCommand(["git", "log", "--format=%an <%ae>", "-n", "1"], None, checked=True, capture=True);
-            if DEBUGGING: print("    >> RESULT 'retrieved commit author of '" + commitAuthor + "'");
-            commitDate = runCommand(["git", "log", "--format=%ad", "-n", "1"], None, checked=True, capture=True);
-            if DEBUGGING: print("    >> RESULT 'retrieved commit timestamp of '" + commitDate + "'");
+            # Create a directory to store the generated code in after we finish building the compilers in the next step.
+            outputDirBase = os.path.join(REPO_ROOT, "_slice_gen_" + branchName + "_" + branchID);
+            Path(outputDirBase).mkdir();
 
-            # Construct a new commit message, which contains the message of the original commit (but with any '#' links sanitized),
-            # and with a little header that says which branch and commit the generated code was built off of, with a link to it.
-            message = branchName + ":(zeroc-ice/ice@" + branchID + ") " + commitMessage.replace("#", "zeroc-ice/ice#");
+            # And also go ahead and resolve which Slice files we should compile from this branch.
+            resolvedSliceFiles = resolveSliceFiles(sliceFiles);
 
-            # We commit the contents of this '_slice_gen_*' folder, so that the '.git' will capture it.
-            ENVIRONMENT["GIT_COMMITTER_DATE"] = commitDate;
-            ENVIRONMENT["GIT_AUTHOR_DATE"] = commitDate;
-            runCommand(["git", "-C", outputDirBase, "add", "--all"], "git -C ... add --all", checked=True, capture=False);
-            runCommand(["git", "-C", outputDirBase, "commit", "--author=" + commitAuthor, "-m", message], "git -C ... commit ...", checked=True, capture=False);
-            del ENVIRONMENT["GIT_COMMITTER_DATE"];
-            del ENVIRONMENT["GIT_AUTHOR_DATE"];
+            # Build the compilers so we can run them.
+            outputString = "";
+            try:
+                print("Building '" + branchName + " @ " + branchID + "'...");
+                if DEBUGGING: print("--------------------------------------------------------------------------------");
+                build(compilers, projPath, pythonPath);
+                if DEBUGGING: print("--------------------------------------------------------------------------------");
+                print("Build complete!");
 
-        # Now that we've captured any changes in the generated code, move the '.git' back to where it belongs,
-        moveDir(os.path.join(outputDirBase, ".git"), compareDir);
+                # Run all the Slice compilers!
+                for compiler in compilers:
+                    compilerBaseName = os.path.basename(compiler);
+                    print("    Running " + compilerBaseName + "...");
+                    compilerOutputDir = os.path.join(outputDirBase, compilerBaseName);
 
-        # We're done with this branch!
-        print("Finished!");
-        print("================================================================================");
-        if backTrack != None:
-            print("Backtrack iterations remaining: '" + str(backTrack) + "'");
-            backTrack -= 1;
+                    # Ironically, we cannot run 'slice2py' in parallel, since multiple files read/write to a single "__init__.py" file.
+                    # We also cannot run java or matlab, since they hit race conditions when generating directories.
+                    if runInParallel and compilerBaseName not in ["slice2py", "slice2java", "slice2matlab"]:
+                        futures = [
+                            EXECUTOR.submit(sliceCompile, compiler, "./" + file, os.path.join(compilerOutputDir, os.path.dirname(file)))
+                            for file in resolvedSliceFiles
+                        ];
+                        for future in futures:
+                            result = future.result();
+                            outputString += result;
+                            print(result, end='');
+                    else:
+                        for file in resolvedSliceFiles:
+                            outputDir = os.path.join(compilerOutputDir, os.path.dirname(file));
+                            result = sliceCompile(compiler, "./" + file, outputDir);
+                            outputString += result;
+                            print(result, end='');
 
-            # Check if enough cycles have passed yet to warrant a repack of the scratch repository.
-            # The `+2` is because we don't want to repack at `backTrack==0`, since we already repack at the end of the script.
-            if ((backTrack+2) % REPACK_COUNTER_MAX == 0):
-                git_repack(compareDir);
+                print("    Storing generated code...");
+            except subprocess.CalledProcessError as ex:
+                print("!!!! BUILD FAILURE !!!!")
+                print();
+                print("Skipping code generation phase and moving to the next branch...")
+                outputString += "\n!!!!!!!!!!!!!!!!!!!!!!!\n!!!! BUILD FAILURE !!!!\n!!!!!!!!!!!!!!!!!!!!!!!\n" + traceback.format_exc().strip();
 
-    # Finally, we do a hard reset on our now fully completed scratch git repository,
-    # so that it doesn't look like all it's files were deleted when you interact with it.
-    runCommand(["git", "-C", compareDir, "reset", "--hard"], "git -C ... reset --hard", checked=True, capture=False);
-    # And do a final packing/garbage collection pass to keep file sizes down.
-    git_repack(compareDir);
+            # If there were any diagnostics produced during the build/code-gen phases, write them into the "DIAGNOSTICS" file.
+            with open(os.path.join(outputDirBase, "DIAGNOSTICS"), "w") as errorFile:
+                errorFile.write(outputString);
 
-    print();
-    print("The results of this script have been stored in the '" + compareDir + "' directory.");
-    print();
+            # Now that we've generated all the code we care about into this '_slice_gen_*' folder,
+            # We rip out the core '.git' folder from our scratch repo, and move into this '_slice_gen_*' folder.
+            moveDir(os.path.join(compareDir, ".git"), outputDirBase);
 
-    # Okay, now the actual last step, we do a final clean to remove everything except the new git repository we created,
-    # And switch back to the branch that this repository was on originally, to minimize inconvenience for users.
-    if DEBUGGING: print("    >> Running final cleanup logic now");
-    git_clean(False);
-    git_checkout(ORIGINAL_BRANCH);
+            # Check if there's been any changes to the generated code. If there have been, we want to add and commit them.
+            # We have this check because if there are no changes, `git commit` 'fails' with a non-zero exit code.
+            result = runCommand(["git", "-C", outputDirBase, "status", "-s"], "git -C ... status -s", checked=True, capture=True);
+            if result != "":
+                # Grab various information from whichever commit we just built everything off of.
+                # We want to include this information (message, date, author) in the commits we generate in the scratch repo.
+                commitMessage = runCommand(["git", "log", "--format=%B", "-n", "1"], None, checked=True, capture=True);
+                if DEBUGGING: print("    >> RESULT 'retrieved commit message of '" + commitMessage + "'");
+                commitAuthor = runCommand(["git", "log", "--format=%an <%ae>", "-n", "1"], None, checked=True, capture=True);
+                if DEBUGGING: print("    >> RESULT 'retrieved commit author of '" + commitAuthor + "'");
+                commitDate = runCommand(["git", "log", "--format=%ad", "-n", "1"], None, checked=True, capture=True);
+                if DEBUGGING: print("    >> RESULT 'retrieved commit timestamp of '" + commitDate + "'");
+
+                # Construct a new commit message, which contains the message of the original commit (but with any '#' links sanitized),
+                # and with a little header that says which branch and commit the generated code was built off of, with a link to it.
+                message = branchName + ":(zeroc-ice/ice@" + branchID + ") " + commitMessage.replace("#", "zeroc-ice/ice#");
+
+                # We commit the contents of this '_slice_gen_*' folder, so that the '.git' will capture it.
+                ENVIRONMENT["GIT_COMMITTER_DATE"] = commitDate;
+                ENVIRONMENT["GIT_AUTHOR_DATE"] = commitDate;
+                runCommand(["git", "-C", outputDirBase, "add", "--all"], "git -C ... add --all", checked=True, capture=False);
+                runCommand(["git", "-C", outputDirBase, "commit", "--author=" + commitAuthor, "-m", message], "git -C ... commit ...", checked=True, capture=False);
+                del ENVIRONMENT["GIT_COMMITTER_DATE"];
+                del ENVIRONMENT["GIT_AUTHOR_DATE"];
+
+            # Now that we've captured any changes in the generated code, move the '.git' back to where it belongs,
+            moveDir(os.path.join(outputDirBase, ".git"), compareDir);
+
+            # We're done with this branch!
+            print("Finished!");
+            print("================================================================================");
+            if backTrack != None:
+                print("Backtrack iterations remaining: '" + str(backTrack) + "'");
+                backTrack -= 1;
+
+                # Check if enough cycles have passed yet to warrant a repack of the scratch repository.
+                # The `+2` is because we don't want to repack at `backTrack==0`, since we already repack at the end of the script.
+                if ((backTrack+2) % REPACK_COUNTER_MAX == 0):
+                    git_repack(compareDir);
+
+        # Finally, we do a hard reset on our now fully completed scratch git repository,
+        # so that it doesn't look like all it's files were deleted when you interact with it.
+        runCommand(["git", "-C", compareDir, "reset", "--hard"], "git -C ... reset --hard", checked=True, capture=False);
+        # And do a final packing/garbage collection pass to keep file sizes down.
+        git_repack(compareDir);
+
+        print();
+        print("The results of this script have been stored in the '" + compareDir + "' directory.");
+        print();
+
+        # Okay, now the actual last step, we do a final clean to remove everything except the new git repository we created,
+        # And switch back to the branch that this repository was on originally, to minimize inconvenience for users.
+        if DEBUGGING: print("    >> Running final cleanup logic now");
+        git_clean(False);
+        git_checkout(ORIGINAL_BRANCH);
+    except KeyboardInterrupt:
+        # If the script was cancelled, and we're not trying to debug it, cleanup what we were doing before exiting.
+        if not DEBUGGING:
+            if outputDirBase:
+                tempGitPath = os.path.join(outputDirBase, ".git");
+                if os.path.exists(tempGitPath):
+                    moveDir(tempGitPath, compareDir);
+            git_clean(False);
+            git_checkout(ORIGINAL_BRANCH);
