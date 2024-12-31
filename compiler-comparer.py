@@ -48,10 +48,15 @@ def runCommand(args, desc, checked, capture):
         result = subprocess.run(args, check=checked, env=ENVIRONMENT, capture_output=True);
     else:
         result = subprocess.run(args, check=checked, env=ENVIRONMENT, stdout=OUTPUT_TO);
+
     if DEBUGGING:
         if desc == None: desc = " ".join(args);
         print("    >> RESULT '" + desc + "' = '" + str(result) + "'");
-    return None if result.stdout == None else result.stdout.decode("utf-8").strip();
+
+    if capture:
+        return (result.stdout.decode("utf-8").strip() + "\n" + result.stderr.decode("utf-8").strip()).strip();
+    else:
+        return None;
 
 
 
@@ -95,7 +100,6 @@ def git_checkout(branchName):
 def git_repack(directory):
     print();
     print("repacking repository and running garbage collection pass...");
-    print();
 
     time.sleep(0.1);
     runCommand(["git", "-C", directory, "gc"], "git -C ... gc", checked=True, capture=False);
@@ -118,7 +122,8 @@ def sliceCompile(compiler, sliceFile, outputDir):
     Path(outputDir).mkdir(parents=True, exist_ok=True);
 
     # We set `checked=False` here to tolerate when the Slice compiler encounters errors. Otherwise one error kills this whole script.
-    return runCommand(args, os.path.basename(compiler) + " ...", checked=False, capture=True);
+    result = runCommand(args, os.path.basename(compiler) + " ...", checked=False, capture=True);
+    return (result + "\n" if result else None);
 
 def moveDir(sourceDir, destinationDir):
     time.sleep(0.1);
@@ -199,8 +204,7 @@ if __name__ == "__main__":
             pythonPath = arg[len(PYTHON_PATH):];
             if DEBUGGING: print("    >> Parsed '" + pythonPath + "' from '" + PYTHON_PATH + "'");
         elif arg == PARALLEL:
-            # TODO parallel doesn't work since we sync stdout to a single file now...
-            # runInParallel = True;
+            runInParallel = True;
             if DEBUGGING: print("    >> Parsed '" + PARALLEL + "'");
         elif arg == "--help":
             printHelp();
@@ -248,6 +252,7 @@ if __name__ == "__main__":
     # If we're going to be running the Slice compiler in parallel, we allocate a process pool to use for that.
     if runInParallel:
         EXECUTOR = concurrent.futures.ProcessPoolExecutor();
+        if DEBUGGING: print("    >> Allocated a parallel executor with " + str(EXECUTOR._max_workers) + "processes");
 
     # Store which branch the repository is currently on, so we can switch back to it when we're done running.
     ORIGINAL_BRANCH = runCommand(["git", "rev-parse", "--abbrev-ref", "HEAD"], None, checked=True, capture=True);
@@ -430,16 +435,22 @@ if __name__ == "__main__":
                 compilerOutputDir = os.path.join(outputDirBase, compilerBaseName);
 
                 # Ironically, we cannot run 'slice2py' in parallel, since multiple files read/write to a single "__init__.py" file.
-                if runInParallel and not compilerBaseName == "slice2py":
+                # We also cannot run java or matlab, since they hit race conditions when generating directories.
+                if runInParallel and compilerBaseName not in ["slice2py", "slice2java", "slice2matlab"]:
                     futures = [
                         EXECUTOR.submit(sliceCompile, compiler, "./" + file, os.path.join(compilerOutputDir, os.path.dirname(file)))
                         for file in resolvedSliceFiles
                     ];
-                    [future.result() for future in futures];
+                    for future in futures:
+                        result = future.result();
+                        outputString += result;
+                        print(result, end='');
                 else:
                     for file in resolvedSliceFiles:
                         outputDir = os.path.join(compilerOutputDir, os.path.dirname(file));
-                        outputString += sliceCompile(compiler, "./" + file, outputDir).strip();
+                        result = sliceCompile(compiler, "./" + file, outputDir);
+                        outputString += result;
+                        print(result, end='');
 
             print("    Storing generated code...");
         except subprocess.CalledProcessError as ex:
@@ -448,7 +459,7 @@ if __name__ == "__main__":
             print("Skipping code generation phase and moving to the next branch...")
             outputString += "\n!!!!!!!!!!!!!!!!!!!!!!!\n!!!! BUILD FAILURE !!!!\n!!!!!!!!!!!!!!!!!!!!!!!\n" + traceback.format_exc().strip();
 
-        # If there were any diagnostics produced during the build/code-gen phases, save them in a file.
+        # If there were any diagnostics produced during the build/code-gen phases, write them into the "DIAGNOSTICS" file.
         with open(os.path.join(outputDirBase, "DIAGNOSTICS"), "w") as errorFile:
             errorFile.write(outputString);
 
