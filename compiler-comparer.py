@@ -98,8 +98,6 @@ def git_repack(directory):
     print();
 
     time.sleep(0.1);
-    runCommand(["git", "-C", directory, "repack"], "git -C ... repack", checked=True, capture=False);
-    time.sleep(0.1);
     runCommand(["git", "-C", directory, "gc"], "git -C ... gc", checked=True, capture=False);
     print();
 
