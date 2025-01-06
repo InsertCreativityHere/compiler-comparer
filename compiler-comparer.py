@@ -511,7 +511,7 @@ if __name__ == "__main__":
 
             # If there were any diagnostics produced during the build/code-gen phases, write them into the "DIAGNOSTICS" file.
             with open(os.path.join(outputDirBase, "DIAGNOSTICS"), "w") as errorFile:
-                errorFile.write(outputString);
+                errorFile.write(outputString.replace(REPO_ROOT, "REPO_ROOT"));
 
             # Now that we've generated all the code we care about into this '_slice_gen_*' folder,
             # We rip out the core '.git' folder from our scratch repo, and move into this '_slice_gen_*' folder.
