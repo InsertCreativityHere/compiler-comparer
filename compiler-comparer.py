@@ -243,7 +243,7 @@ if __name__ == "__main__":
         elif arg == PARALLEL:
             runInParallel = True;
             if DEBUGGING: print("    >> Parsed '" + PARALLEL + "'");
-        elif arg == "--help":
+        elif arg == "--help" or arg == "-h" or arg == "/?":
             printHelp();
             if DEBUGGING: print("    >> Emitted help message");
             exit(0);
