@@ -123,7 +123,7 @@ def sliceCompile(compiler, sliceFile, outputDir):
 
     # We set `checked=False` here to tolerate when the Slice compiler encounters errors. Otherwise one error kills this whole script.
     result = runCommand(args, os.path.basename(compiler) + " ...", checked=False, capture=True);
-    return (result + "\n" if result else None);
+    return (result + "\n" if result else result);
 
 def moveDir(sourceDir, destinationDir):
     time.sleep(0.1);
@@ -526,6 +526,8 @@ if __name__ == "__main__":
     except KeyboardInterrupt:
         # If the script was cancelled, and we're not trying to debug it, cleanup what we were doing before exiting.
         if not DEBUGGING:
+            print("Cancellation requested: performing a quick cleanup (takes around 1 second)")
+            time.sleep(0.5);
             if outputDirBase:
                 tempGitPath = os.path.join(outputDirBase, ".git");
                 if os.path.exists(tempGitPath):
