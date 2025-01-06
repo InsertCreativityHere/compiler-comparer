@@ -110,7 +110,7 @@ OPTIONS:
 
 --python-path      This is probably useless. I should probably remove it.
 
---parallel         Instructs the script to build and run the Slice compilers in parallel.
+-p, --parallel     Instructs the script to build and run the Slice compilers in parallel.
                    You probably want this turned on.
                    Note: 'slice2java', 'slice2py', and 'slice2matlab' are always run serially due
                    to race conditions in how they generate directories and shared files.
@@ -222,7 +222,8 @@ if __name__ == "__main__":
     PROJ_PATH = "--proj-path=";
     COMPILERS_PATH = "--compilers-path=";
     PYTHON_PATH = "--python-path=";
-    PARALLEL = "--parallel";
+    SHORT_PARALLEL = "-p";
+    LONG_PARALLEL = "--parallel";
 
     # Parse any command line arguments.
     if DEBUGGING: print("    >> Provided arguments: " + str(sys.argv[1:]));
@@ -251,9 +252,9 @@ if __name__ == "__main__":
         elif arg.startswith(PYTHON_PATH):
             pythonPath = arg[len(PYTHON_PATH):];
             if DEBUGGING: print("    >> Parsed '" + pythonPath + "' from '" + PYTHON_PATH + "'");
-        elif arg == PARALLEL:
+        elif arg == SHORT_PARALLEL or arg == LONG_PARALLEL:
             runInParallel = True;
-            if DEBUGGING: print("    >> Parsed '" + PARALLEL + "'");
+            if DEBUGGING: print("    >> Turning 'runInParallel' on because of '" + arg + "'");
         elif arg == "--help" or arg == "-h" or arg == "/?":
             printHelp();
             if DEBUGGING: print("    >> Emitted help message");
