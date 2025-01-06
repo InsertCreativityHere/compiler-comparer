@@ -61,7 +61,56 @@ def runCommand(args, desc, checked, capture):
 
 
 def printHelp():
-    print("TODO");
+    print(
+'''
+USAGE:
+python compiler-comparer.py [options] [slice_files...]
+
+'slice_files' should be separated by spaces and can be either individual files or directories.
+If a file is provided it is passed directly to the Slice compilers (and should end with '.ice').
+If a directory is provided, this script will recursively search for all files ending with '.ice'
+within the directory and compile them.
+
+OPTIONS:
+-c, --compiler     Specifies a slice compiler that this script should run over Slice files.
+                   This should be the bare name of the compiler, without any file extension.
+                   For example: `--compiler=slice2java` tells the script to only run `slice2java`.
+                   It is valid to provide multiple compilers; this script will run them in the
+                   order they are provided.
+                   If no compilers are specified, this script will automatically use _all_
+                   the available Slice compilers on the current platform.
+
+-b, --branch       Specifies which branches the script should checkout before building.
+                   Actually this can be any 'treeish' including branch names, commit IDs, and tags.
+                   For example: `--branch=main --branch=9100d41` tells the script to check a branch
+                   named `main` and a commit with an ID of `9100d41`.
+                   It is valid to provide multiple branches; this script will check them out and
+                   build them in the order they are provided.
+                   If no branches are specified, this script will automatically use `HEAD`.
+
+--back-track       Instructs the script to use back-tracking.
+                   Instead of checking out specific branches/commits, the script will start at
+                   `HEAD~N` and build every commit (in order) until it's reached back to `HEAD`.
+                   For example: `--back-track=12` tells the script to check the last 12 commits.
+                   If `--back-track` is specified, it is invalid to also provide specific branches
+                   with `--branch`. Only one of these options may be used at a time.
+
+--proj-path        Specifies the project file path that should be used to build the compilers.
+                   It shouldn't be necessary to set this if you're inside the repository,
+                   the script should be able to find `cpp/msbuild/ice.proj` automatically.
+                   But if it can't, or you want to build with a different project, this exists.
+                   For example: `--proj-path="D:/Code/Workspace/ice/cpp/msbuild/ice.proj"`
+
+--compilers-path   Specifies where the compilers will be built, so the script can find them.
+                   It shouldn't be necessary to set this if you're inside the repository,
+                   the script should be able to locate them based on the current platform.
+                   But if it can't, or you want to use a different set of compilers, this exists?
+                   If provided, the path should be relative to the root of the repository.
+                   For example: `--compilers-path="cpp/bin"` is the expected path on unix systems.
+
+--python-path      This is probably useless. I should probably remove it.
+'''
+    );
 
 
 
