@@ -188,18 +188,6 @@ def moveDir(sourceDir, destinationDir):
 
 
 if __name__ == "__main__":
-    # Before anything else, make sure the user is VERY AWARE that this will clean and reset their repo...
-    print();
-    print("!!! ------------------------------------------------- !!!");
-    print("!!! BE WARNED THIS SCRIPT WILL CLEAN THE CURRENT REPO !!!");
-    print("!!! DO NOT RUN THIS IF YOU HAVE ANY UNSAVED WORK LEFT !!!");
-    print("!!! ------------------------------------------------- !!!");
-    input("Press Enter to continue...");
-    print();
-
-
-
-
     #### ============================ ####
     #### Parse Command Line Arguments ####
     #### ============================ ####
@@ -283,6 +271,18 @@ if __name__ == "__main__":
         print("    >> projPath = '" + str(projPath) + "'");
         print("    >> compilersPath = '" + str(compilersPath) + "'");
         print();
+
+
+
+
+    # Before we do anything else, make sure the user is VERY AWARE that this will clean and reset their repo...
+    print();
+    print("!!! ------------------------------------------------- !!!");
+    print("!!! BE WARNED THIS SCRIPT WILL CLEAN THE CURRENT REPO !!!");
+    print("!!! DO NOT RUN THIS IF YOU HAVE ANY UNSAVED WORK LEFT !!!");
+    print("!!! ------------------------------------------------- !!!");
+    input("Press Enter to continue...");
+    print();
 
 
 
