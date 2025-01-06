@@ -109,6 +109,13 @@ OPTIONS:
                    For example: `--compilers-path="cpp/bin"` is the expected path on unix systems.
 
 --python-path      This is probably useless. I should probably remove it.
+
+--parallel         Instructs the script to build and run the Slice compilers in parallel.
+                   You probably want this turned on.
+                   Note: 'slice2java', 'slice2py', and 'slice2matlab' are always run serially due
+                   to race conditions in how they generate directories and shared files.
+                   But all other compilers will be run in parallel, even if used alongside one of
+                   the above, and the building of the compilers themselves will also be in parallel.
 '''
     );
 
@@ -157,10 +164,14 @@ def git_repack(directory):
 def build(compilers, projPath, pythonPath):
     time.sleep(0.1);
     if IS_WINDOWS:
-        args = ["msbuild", projPath, "/target:BuildDist", "/p:Configuration=Debug", "/p:Platform=x64", "/p:PythonHome=\"" + pythonPath + "\"", "/m", "/nr:false"];
+        args = ["msbuild", projPath, "/target:BuildDist", "/p:Configuration=Debug", "/p:Platform=x64", "/p:PythonHome=\"" + pythonPath + "\"", "/nr:false"];
+        if runInParallel:
+            args.insert(1, "/m");
         runCommand(args, "msbuild ...", checked=True, capture=False);
     else:
-        args = ["make", "-j", "-C", os.path.dirname(projPath)] + [os.path.basename(c) for c in compilers];
+        args = ["make", "-C", os.path.dirname(projPath)] + [os.path.basename(c) for c in compilers];
+        if runInParallel:
+            args.insert(1, "-j");
         runCommand(args, "make ...", checked=True, capture=False);
 
 def sliceCompile(compiler, sliceFile, outputDir):
