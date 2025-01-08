@@ -45,9 +45,9 @@ REPACK_COUNTER_MAX = 100;
 
 def runCommand(args, desc, checked, capture):
     if capture:
-        result = subprocess.run(args, check=checked, env=ENVIRONMENT, capture_output=True);
+        result = subprocess.run(args, check=checked, env=ENVIRONMENT, shell=True, capture_output=True);
     else:
-        result = subprocess.run(args, check=checked, env=ENVIRONMENT, stdout=OUTPUT_TO);
+        result = subprocess.run(args, check=checked, env=ENVIRONMENT, shell=True, stdout=OUTPUT_TO);
 
     if DEBUGGING:
         if desc == None: desc = " ".join(args);
@@ -199,6 +199,8 @@ def sliceCompile(compiler, sliceFile, outputDir):
 def moveDir(sourceDir, destinationDir):
     time.sleep(0.1);
     if IS_WINDOWS:
+        # The 'move' command cannot move hidden directories, so we first must make sure the 'hidden' attribute is unset.
+        runCommand(["attrib", "-h", sourceDir], "move ...", checked=True, capture=False);
         runCommand(["move", "/y", sourceDir, destinationDir], "move ...", checked=True, capture=False);
     else:
         runCommand(["mv", "-f", sourceDir, destinationDir], "mv ...", checked=True, capture=False);
