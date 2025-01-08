@@ -95,6 +95,17 @@ OPTIONS:
                    If `--back-track` is specified, it is invalid to also provide specific branches
                    with `--branch`. Only one of these options may be used at a time.
 
+--catchup          This script outputs a git repository showing all changes in the generated code.
+                   Over time, this repository can fall behind the current state of the original
+                   repository, that's where this option comes in.
+                   It only works if you have an already existing '_slice_compare_' directory that
+                   has the results from a previous run of this script. If that's all true,
+                   specifying this option instructs the script to automatically determine how many
+                   commits it's behind from the current 'HEAD', and will automatically use
+                   back-tracking to catch it back up to the most recent commit.
+                   If `--catchup` is specified it is invalid to also provide specific branches with
+                   `--branch`, or to use `--back-track`. Only one of these may be used at a time.
+
 --proj-path        Specifies the project file path that should be used to build the compilers.
                    It shouldn't be necessary to set this if you're inside the repository,
                    the script should be able to find `cpp/msbuild/ice.proj` automatically.
@@ -207,6 +218,7 @@ if __name__ == "__main__":
     compilers = [];
     branches = [];
     backTrack = None;
+    catchup = False;
     sliceFiles = [];
     projPath = "";
     compilersPath = "";
@@ -219,6 +231,7 @@ if __name__ == "__main__":
     SHORT_BRANCH = "-b=";
     LONG_BRANCH = "--branch=";
     BACK_TRACK = "--back-track=";
+    CATCHUP = "--catchup";
     PROJ_PATH = "--proj-path=";
     COMPILERS_PATH = "--compilers-path=";
     PYTHON_PATH = "--python-path=";
@@ -243,6 +256,9 @@ if __name__ == "__main__":
         elif arg.startswith(BACK_TRACK):
             backTrack = int((arg[len(BACK_TRACK):]));
             if DEBUGGING: print("    >> Parsed '" + str(backTrack) + "' from '" + BACK_TRACK + "'");
+        elif arg == CATCHUP:
+            catchup = True;
+            if DEBUGGING: print("    >> Turning 'catchup' on because of '" + arg + "'");
         elif arg.startswith(PROJ_PATH):
             projPath = arg[len(PROJ_PATH):];
             if DEBUGGING: print("    >> Parsed '" + projPath + "' from '" + PROJ_PATH + "'");
@@ -279,9 +295,11 @@ if __name__ == "__main__":
         print("    >> compilers = '" + str(compilers) + "'");
         print("    >> branches = '" + str(branches) + "'");
         print("    >> backTrack = '" + str(backTrack) + "'");
+        print("    >> catchup = '" + str(catchup) + "'");
         print("    >> sliceFiles = '" + str(sliceFiles) + "'");
         print("    >> projPath = '" + str(projPath) + "'");
         print("    >> compilersPath = '" + str(compilersPath) + "'");
+        print("    >> runInParallel = '" + str(runInParallel) + "'");
         print();
 
 
@@ -310,6 +328,10 @@ if __name__ == "__main__":
         print("ERROR: Expected repository root to be at '" + REPO_ROOT + "', but no such directory exists!");
         exit(11);
 
+    # This is the path where we're going to store all the results.
+    # We don't create it yet, just compute what the path is and store it.
+    compareDir = os.path.join(REPO_ROOT, "_slice_compare_");
+
     # If we're going to be running the Slice compiler in parallel, we allocate a process pool to use for that.
     if runInParallel:
         EXECUTOR = concurrent.futures.ProcessPoolExecutor();
@@ -328,16 +350,45 @@ if __name__ == "__main__":
         compilers.remove("ice2slice");
         if DEBUGGING: print("    >> No compilers were specified. Setting to '" + str(compilers) + "'");
 
-    # If no branches were specified, and we aren't backtracking, we default to using the current branch.
-    if len(branches) == 0 and backTrack == None:
+    # Only one of these 'modes' can be used at a time: "specific branches", "back-tracking", and 'catch-up".
+    # If any pair of these have been enabled by command-line input, we exit with an error.
+    if (len(branches) != 0) and (backTrack != None):
+        print("ERROR: you cannot specify branches and a back-track count at the same time");
+        exit(12);
+    if (len(branches) != 0) and (catchup != False):
+        print("ERROR: you cannot specify branches and enable catch-up mode at the same time");
+        exit(13);
+    if (backTrack != None) and (catchup != False):
+        print("ERROR: you cannot specify a back-track count and enable catch-up mode at the same time");
+        exit(14);
+
+    # If no branches were specified, and we aren't back-tracking or catching-up, we default to using the current branch.
+    if len(branches) == 0 and backTrack == None and catchup == False:
         branches = [ORIGINAL_BRANCH];
         if DEBUGGING: print("    >> No branches were specified. Setting to current branch '" + str(branches[0]) + "'");
 
-    # If we're backtracking, make sure no branches were specified, and then re-use the 'branches' field.
+    # If we're 'catching-up', we re-use back-tracking by determining how many commits '_slice_compare_' is behind 'HEAD'.
+    if catchup:
+        if DEBUGGING: print("    > Catchup mode has been enabled. Determining how many commits to backtrack...");
+        if not os.path.isdir(compareDir):
+            print("Catchup mode was specified, but there was no pre-existing '_slice_compare_' repo to catch up!");
+            exit(16);
+
+        # Get the commit ID of the last commit that was compared with this script from the commit message.
+        lastComparedCommitMessage = runCommand(["git", "-C", compareDir, "log", "--format=%B", "-n", "1"], None, checked=True, capture=True);
+        idStart = lastComparedCommitMessage.index("zeroc-ice/ice@") + len("zeroc-ice/ice@");
+        idEnd = lastComparedCommitMessage.index(')', idStart);
+        lastComparedCommitId = lastComparedCommitMessage[idStart : idEnd];
+
+        # Determine how many commits behind this is from the current repository's 'HEAD'.
+        # Then we subtract '1', because backTrack always adds '1' because it wants to build the last commit.
+        # But here, we've already done the 'last commit' we only want to do the commits that come after it.
+        commitsBehind = runCommand(["git", "rev-list", "--count", lastComparedCommitId + ".."], None, checked=True, capture=True);
+        backTrack = int(commitsBehind) - 1;
+        if DEBUGGING: print("    > To catchup, we need to backtrack by '" + commitsBehind + "' commits");
+
+    # If we're 'back-tracking', we re-use the 'branches' field by filling it with the last N commits.
     if backTrack != None:
-        if len(branches) != 0:
-            print("ERROR: you cannot specify branches and a back-track count at the same time");
-            exit(15);
         if DEBUGGING: print("    >> branches has been set to backtrack " + str(backTrack) + " times");
         backCommits = [("HEAD~" + str(i)) for i in range(backTrack + 1)];
         backCommits.reverse();
@@ -434,16 +485,6 @@ if __name__ == "__main__":
     #### ================================= ####
     #### Let's Actually Do Some Stuff Now! ####
     #### ================================= ####
-
-    # This is the path where we're going to store all the results.
-    # We don't create it yet, just compute what the path is and store it.
-    compareDir = os.path.join(REPO_ROOT, "_slice_compare_");
-    # If this path already exists, we check if there is a '.git' directory in it.
-    # This is expected if this script has already been run before. But, before we start this run,
-    # we have to rename this folder to anything else, otherwise when we run `git clean` it won't properly
-    # deal with this folder, since it treats it as a separate git repository.
-    if os.path.exists(os.path.join(compareDir, ".git")):
-        moveDir(os.path.join(compareDir, ".git"), os.path.join(compareDir, "plz-delete"))
 
     # First, navigate to the repo root. It's easier if we're running in a known location.
     os.chdir(REPO_ROOT);

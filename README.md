@@ -30,6 +30,8 @@ The directory structure of the generated code is preserved, so there is no risk 
 python compiler-comparer.py --branch=main --branch=9100d41 --compiler=slice2java --compiler=slice2cs --parallel
 ```
 
+TODO add catchup example...
+
 
 ### Usage
 
@@ -71,8 +73,22 @@ Options:
                    `HEAD~N` and build every commit (in order) until it's reached back to `HEAD`.
                    For example: `--back-track=12` tells the script to check the last 12 commits.
 
-                   If `--back-track` is specified, it is invalid to also provide specific branches
-                   with `--branch`. Only one of these options may be used at a time.
+                   If `--back-track` is specified it is invalid to also provide specific branches
+                   with `--branch`, or to use `--catchup`. Only one of these may be used at a time.
+
+
+--catchup          This script outputs a git repository showing all changes in the generated code.
+                   Over time, this repository can fall behind the current state of the original
+                   repository, that's where this option comes in.
+
+                   It only works if you have an already existing '_slice_compare_' directory that
+                   has the results from a previous run of this script. If that's all true,
+                   specifying this option instructs the script to automatically determine how many
+                   commits it's behind from the current 'HEAD', and will automatically use
+                   back-tracking to catch it back up to the most recent commit.
+
+                   If `--catchup` is specified it is invalid to also provide specific branches with
+                   `--branch`, or to use `--back-track`. Only one of these may be used at a time.
 
 
 --proj-path        Specifies the project file path that should be used to build the compilers.
