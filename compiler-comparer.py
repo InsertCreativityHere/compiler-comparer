@@ -533,13 +533,13 @@ if __name__ == "__main__":
 
                 # Run all the Slice compilers!
                 for compiler in compilers:
-                    compilerBaseName = os.path.basename(compiler);
-                    print("    Running " + compilerBaseName + "...");
-                    compilerOutputDir = os.path.join(outputDirBase, compilerBaseName);
+                    compilerName = Path(compiler).stem;
+                    print("    Running " + compilerName + "...");
+                    compilerOutputDir = os.path.join(outputDirBase, compilerName);
 
                     # Ironically, we cannot run 'slice2py' in parallel, since multiple files read/write to a single "__init__.py" file.
                     # We also cannot run java or matlab, since they hit race conditions when generating directories.
-                    if runInParallel and compilerBaseName not in ["slice2py", "slice2java", "slice2matlab"]:
+                    if runInParallel and compilerName not in ["slice2py", "slice2java", "slice2matlab"]:
                         futures = [
                             EXECUTOR.submit(sliceCompile, compiler, "./" + file, os.path.join(compilerOutputDir, os.path.dirname(file)))
                             for file in resolvedSliceFiles
