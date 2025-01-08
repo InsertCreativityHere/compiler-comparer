@@ -494,7 +494,7 @@ if __name__ == "__main__":
     git_reset();
 
     # Create a new directory that we'll use as scratch space for comparing the generated code.
-    Path(compareDir).mkdir();
+    Path(compareDir).mkdir(parents=True, exist_ok=True);
 
     # Initialize a git repository in that directory. We utilize git to do the diffing for us!
     runCommand(["git", "-C", compareDir, "-c", "init.defaultBranch=master", "init"], "git -C ... init", checked=True, capture=False);
