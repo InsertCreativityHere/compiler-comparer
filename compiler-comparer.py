@@ -119,8 +119,6 @@ OPTIONS:
                    If provided, the path should be relative to the root of the repository.
                    For example: `--compilers-path="cpp/bin"` is the expected path on unix systems.
 
---python-path      This is probably useless. I should probably remove it.
-
 -p, --parallel     Instructs the script to build and run the Slice compilers in parallel.
                    You probably want this turned on.
                    Note: 'slice2java', 'slice2py', and 'slice2matlab' are always run serially due
@@ -172,10 +170,10 @@ def git_repack(directory):
     runCommand(["git", "-C", directory, "gc"], "git -C ... gc", checked=True, capture=False);
     print();
 
-def build(compilers, projPath, pythonPath):
+def build(compilers, projPath):
     time.sleep(0.1);
     if IS_WINDOWS:
-        args = ["msbuild", projPath, "/target:BuildDist", "/p:Configuration=Debug", "/p:Platform=x64", "/p:PythonHome=\"" + pythonPath + "\"", "/nr:false"];
+        args = ["msbuild", projPath, "/target:BuildDist", "/p:Configuration=Debug", "/p:Platform=x64", "/nr:false"];
         if runInParallel:
             args.insert(1, "/m");
         runCommand(args, "msbuild ...", checked=True, capture=False);
@@ -224,7 +222,6 @@ if __name__ == "__main__":
     sliceFiles = [];
     projPath = "";
     compilersPath = "";
-    pythonPath = "";
     runInParallel = False;
 
     # Define all the command-line switches for specifying parameters.
@@ -236,7 +233,6 @@ if __name__ == "__main__":
     CATCHUP = "--catchup";
     PROJ_PATH = "--proj-path=";
     COMPILERS_PATH = "--compilers-path=";
-    PYTHON_PATH = "--python-path=";
     SHORT_PARALLEL = "-p";
     LONG_PARALLEL = "--parallel";
 
@@ -267,9 +263,6 @@ if __name__ == "__main__":
         elif arg.startswith(COMPILERS_PATH):
             compilersPath = arg[len(COMPILERS_PATH):];
             if DEBUGGING: print("    >> Parsed '" + compilersPath + "' from '" + COMPILERS_PATH + "'");
-        elif arg.startswith(PYTHON_PATH):
-            pythonPath = arg[len(PYTHON_PATH):];
-            if DEBUGGING: print("    >> Parsed '" + pythonPath + "' from '" + PYTHON_PATH + "'");
         elif arg == SHORT_PARALLEL or arg == LONG_PARALLEL:
             runInParallel = True;
             if DEBUGGING: print("    >> Turning 'runInParallel' on because of '" + arg + "'");
@@ -434,11 +427,6 @@ if __name__ == "__main__":
         compilers = [c + ".exe" for c in compilers];
     if DEBUGGING: print("    >> (sanitized) compilers = '" + str(compilers) + "'");
 
-    # If no python path was specified, we get the path for the 'python' that this script is running in.
-    if len(pythonPath) == 0:
-        pythonPath = sys.exec_prefix
-        if DEBUGGING: print("    >> No python path was specified. Setting to '" + str(pythonPath) + "'");
-
     def resolveSliceFiles(sliceFiles):
         # Check for any directories that were passed in as Slice files.
         # We recursively check each of these directories for Slice files and use those instead.
@@ -529,7 +517,7 @@ if __name__ == "__main__":
             try:
                 print("Building '" + branchName + " @ " + branchID + "'...");
                 if DEBUGGING: print("--------------------------------------------------------------------------------");
-                build(compilers, projPath, pythonPath);
+                build(compilers, projPath);
                 if DEBUGGING: print("--------------------------------------------------------------------------------");
                 print("Build complete!");
 

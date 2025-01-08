@@ -107,9 +107,6 @@ Options:
                    For example: `--compilers-path="cpp/bin"` is the expected path on unix systems.
 
 
---python-path      This is probably useless. I should probably remove it.
-
-
 -p, --parallel     Instructs the script to build and run the Slice compilers in parallel.
                    You probably want this turned on.
 
