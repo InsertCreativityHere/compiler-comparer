@@ -522,16 +522,11 @@ if __name__ == "__main__":
                     print("    Running " + compilerName + "...");
                     compilerOutputDir = os.path.join(outputDirBase, compilerName);
 
-                    compileCommand = compiler;
-                    if (compilerName == "slice2js"):
-                        # If we're running slice2js, we also want to be checking the generated typescript code.
-                        compileCommand += " --typescript"
-
                     # Ironically, we cannot run 'slice2py' in parallel, since multiple files read/write to a single "__init__.py" file.
                     # We also cannot run java or matlab, since they hit race conditions when generating directories.
                     if runInParallel and compilerName not in ["slice2py", "slice2java", "slice2matlab"]:
                         futures = [
-                            EXECUTOR.submit(sliceCompile, compileCommand, "./" + file, os.path.join(compilerOutputDir, os.path.dirname(file)))
+                            EXECUTOR.submit(sliceCompile, compiler, "./" + file, os.path.join(compilerOutputDir, os.path.dirname(file)))
                             for file in resolvedSliceFiles
                         ];
                         for future in futures:
@@ -541,7 +536,7 @@ if __name__ == "__main__":
                     else:
                         for file in resolvedSliceFiles:
                             outputDir = os.path.join(compilerOutputDir, os.path.dirname(file));
-                            result = sliceCompile(compileCommand, "./" + file, outputDir);
+                            result = sliceCompile(compiler, "./" + file, outputDir);
                             outputString += result;
                             print(result, end='');
 
