@@ -338,11 +338,6 @@ if __name__ == "__main__":
     # If no compilers were specified, we want to run _all_ the compilers.
     if len(compilers) == 0:
         compilers = ["ice2slice", "slice2cpp", "slice2cs", "slice2java", "slice2js", "slice2matlab", "slice2php", "slice2py", "slice2rb", "slice2swift"];
-        #TODO We don't build 'slice2swift' on windows... we should fix this in the future.
-        if IS_WINDOWS:
-            compilers.remove("slice2swift");
-        #TODO 'ice2slice' hits an assertion when compiling constants. Unfortunately, not worth running yet.
-        compilers.remove("ice2slice");
         if DEBUGGING: print("    >> No compilers were specified. Setting to '" + str(compilers) + "'");
 
     # Only one of these 'modes' can be used at a time: "specific branches", "back-tracking", and 'catch-up".
