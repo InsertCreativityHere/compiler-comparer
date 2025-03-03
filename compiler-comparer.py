@@ -187,6 +187,11 @@ def sliceCompile(compiler, sliceFile, outputDir):
     parentDir = os.path.dirname(sliceFile);
     args = [compiler, "--output-dir", outputDir, "-I./slice", "-I" + parentDir, "-I" + os.path.dirname(parentDir), sliceFile];
 
+    # Make sure to also check the generated typescript code if we're running 'slice2js'.
+    compilerName = Path(compiler).stem;
+    if (compilerName == "slice2js"):
+        args.insert(1, "--typescript");
+
     # Make sure the output directory exists. The Slice compilers cannot create directories that don't already exist.
     Path(outputDir).mkdir(parents=True, exist_ok=True);
 
