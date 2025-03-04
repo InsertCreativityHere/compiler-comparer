@@ -240,6 +240,7 @@ if __name__ == "__main__":
     COMPILERS_PATH = "--compilers-path=";
     SHORT_PARALLEL = "-p";
     LONG_PARALLEL = "--parallel";
+    LONG_DEBUGGING = "--debug";
 
     # Parse any command line arguments.
     if DEBUGGING: print("    >> Provided arguments: " + str(sys.argv[1:]));
@@ -271,6 +272,9 @@ if __name__ == "__main__":
         elif arg == SHORT_PARALLEL or arg == LONG_PARALLEL:
             runInParallel = True;
             if DEBUGGING: print("    >> Turning 'runInParallel' on because of '" + arg + "'");
+        elif arg == LONG_DEBUGGING:
+            DEBUGGING = True;
+            print("    >> Turning 'DEBUGGING' on because of '" + arg + "'");
         elif arg == "--help" or arg == "-h" or arg == "/?":
             printHelp();
             if DEBUGGING: print("    >> Emitted help message");
@@ -531,8 +535,7 @@ if __name__ == "__main__":
                     # We also cannot run java or matlab, since they hit race conditions when generating directories.
                     if runInParallel and compilerName not in ["slice2py", "slice2java", "slice2matlab"]:
                         futures = [
-                            EXECUTOR.submit(sliceCompile, compiler, "./" + file, os.path.join(compilerOutputDir, os.path.dirname(file)))
-                            for file in resolvedSliceFiles
+                            EXECUTOR.submit(sliceCompile, compiler, "./" + file, os.path.join(compilerOutputDir, os.path.dirname(file))) for file in resolvedSliceFiles
                         ];
                         for future in futures:
                             result = future.result();
