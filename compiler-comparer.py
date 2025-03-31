@@ -242,7 +242,7 @@ if __name__ == "__main__":
     COMPILERS_PATH = "--compilers-path=";
     SHORT_PARALLEL = "-p";
     LONG_PARALLEL = "--parallel";
-    LONG_DEBUGGING = if __name__ == "__main__":;
+    LONG_DEBUGGING = "--debug";
 
     # Parse any command line arguments.
     if DEBUGGING: print("    >> Provided arguments: " + str(sys.argv[1:]));
