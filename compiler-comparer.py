@@ -10,8 +10,10 @@ import time;
 import traceback;
 
 
-# Setting this to true will cause the script to print lots of letters to the terminal while it's running.
-DEBUGGING = False;
+# Check for '--debug' before we parse anything else, since we may want to debug the parsing itself.
+# Note that we still redundantly handle this flag in the parsing logic.
+# If this is true the script will print lots of letters to the terminal while it's running.
+DEBUGGING = "--debug" in sys.argv;
 
 
 # This is passed into many of the subprocess commands we execute.
@@ -240,7 +242,7 @@ if __name__ == "__main__":
     COMPILERS_PATH = "--compilers-path=";
     SHORT_PARALLEL = "-p";
     LONG_PARALLEL = "--parallel";
-    LONG_DEBUGGING = "--debug";
+    LONG_DEBUGGING = if __name__ == "__main__":;
 
     # Parse any command line arguments.
     if DEBUGGING: print("    >> Provided arguments: " + str(sys.argv[1:]));
@@ -273,8 +275,8 @@ if __name__ == "__main__":
             runInParallel = True;
             if DEBUGGING: print("    >> Turning 'runInParallel' on because of '" + arg + "'");
         elif arg == LONG_DEBUGGING:
-            DEBUGGING = True;
-            print("    >> Turning 'DEBUGGING' on because of '" + arg + "'");
+            assert DEBUGGING == True;
+            print("    >> 'DEBUGGING' was already turned on because of '" + arg + "'");
         elif arg == "--help" or arg == "-h" or arg == "/?":
             printHelp();
             if DEBUGGING: print("    >> Emitted help message");
