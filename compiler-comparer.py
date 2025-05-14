@@ -175,9 +175,15 @@ def git_repack(directory):
 def build(compilers, projPath):
     time.sleep(0.1);
     if IS_WINDOWS:
-        args = ["msbuild", projPath, "/target:BuildDist", "/p:Configuration=Debug", "/p:Platform=x64", "/nr:false"];
+        # We have to do a NuGet restore before building the Slice compilers.
+        runCommand(["msbuild", projPath, "/t:NuGetRestore"], "NuGet Restore ...", checked=True, capture=False);
+
+        # Build only the compilers we need. This granularity is only possible with the solution file, not the project.
+        slnPath = projPath.replace(".proj", ".sln");
+        args = ["msbuild", slnPath, "/p:Configuration=Debug", "/p:Platform=x64", "/nr:false"];
         if runInParallel:
             args.insert(1, "/m");
+        args += [("/t:" + Path(c).stem) for c in compilers];
         runCommand(args, "msbuild ...", checked=True, capture=False);
     else:
         args = ["make", "-C", os.path.dirname(projPath)] + [os.path.basename(c) for c in compilers];
