@@ -47,9 +47,9 @@ REPACK_COUNTER_MAX = 100;
 
 def runCommand(args, desc, checked, capture):
     if capture:
-        result = subprocess.run(args, check=checked, env=ENVIRONMENT, shell=True, capture_output=True);
+        result = subprocess.run(args, check=checked, env=ENVIRONMENT, shell=IS_WINDOWS, capture_output=True);
     else:
-        result = subprocess.run(args, check=checked, env=ENVIRONMENT, shell=True, stdout=OUTPUT_TO);
+        result = subprocess.run(args, check=checked, env=ENVIRONMENT, shell=IS_WINDOWS, stdout=OUTPUT_TO);
 
     if DEBUGGING:
         if desc == None: desc = " ".join(args);
